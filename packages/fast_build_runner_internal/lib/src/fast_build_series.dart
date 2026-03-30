@@ -10,6 +10,7 @@ import 'package:build_runner/src/build_plan/build_directory.dart';
 import 'package:build_runner/src/build_plan/build_filter.dart';
 import 'package:build_runner/src/build_plan/build_plan.dart';
 import 'package:build_runner/src/constants.dart';
+import 'package:build_runner/src/io/asset_tracker.dart';
 import 'package:build_runner/src/io/filesystem_cache.dart';
 import 'package:build_runner/src/io/generated_asset_hider.dart';
 import 'package:build_runner/src/io/reader_writer.dart';
@@ -68,6 +69,14 @@ class FastBuildSeries {
   }
 
   Stream<BuildResult> get buildResults => _buildResultsController.stream;
+
+  Future<Map<AssetId, ChangeType>> collectSourceUpdates() {
+    return AssetTracker(
+      _buildPlan.readerWriter,
+      _buildPlan.buildPackages,
+      _buildPlan.buildConfigs,
+    ).collectChanges(_assetGraph);
+  }
 
   Future<BuildResult> run(
     Map<AssetId, ChangeType> updates, {

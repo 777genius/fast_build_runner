@@ -15,6 +15,7 @@ import 'fast_build_series.dart';
 import 'fast_watch_scheduler.dart';
 import 'rust_daemon_client.dart';
 import 'watch_alpha_result.dart';
+import 'watch_batch_resolver.dart';
 import 'watch_update_merger.dart';
 
 class FastWatchAlphaSession {
@@ -114,6 +115,7 @@ class FastWatchAlphaSession {
       final observedEventBatches = <List<String>>[];
       final mergedUpdateBatches = <List<String>>[];
       final incrementalResults = <FastBuildStepResult>[];
+      final resolutionWarnings = <String>[];
       _CollectedWatchBatch? lastWatchBatch;
 
       for (var cycleIndex = 0; cycleIndex < incrementalCycles; cycleIndex++) {
@@ -129,7 +131,18 @@ class FastWatchAlphaSession {
         );
         lastWatchBatch = watchBatch;
 
-        final mergedUpdates = watchBatch.mergedUpdates;
+        final resolution = await resolveWatchBatch(
+          watcherUpdates: watchBatch.mergedUpdates,
+          watcherBatchWasEmpty: watchBatch.isEmpty,
+          expectedSourceAssetId: sourceAssetId,
+          collectSourceUpdates: buildSeries.collectSourceUpdates,
+        );
+        final mergedUpdates = resolution.updates;
+        if (resolution.warning != null) {
+          resolutionWarnings.add(
+            'incremental-${cycleIndex + 1}: ${resolution.warning!}',
+          );
+        }
         observedEventBatches.add(List<String>.from(watchBatch.observedEvents));
         mergedUpdateBatches.add(
           mergedUpdates.entries
@@ -195,6 +208,7 @@ class FastWatchAlphaSession {
             'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
           if (mutateBuildScriptBeforeIncremental)
             'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
+          ...resolutionWarnings,
         ],
         errors: [
           ...initialResult.errors,

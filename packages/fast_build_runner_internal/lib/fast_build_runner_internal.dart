@@ -11,6 +11,7 @@ export 'src/upstream_pin.dart';
 export 'src/watch_alpha_request.dart';
 export 'src/watch_alpha_result.dart';
 export 'src/watch_alpha_runner.dart';
+export 'src/watch_batch_resolver.dart';
 export 'src/watch_benchmark_request.dart';
 export 'src/watch_benchmark_result.dart';
 export 'src/watch_benchmark_runner.dart';
