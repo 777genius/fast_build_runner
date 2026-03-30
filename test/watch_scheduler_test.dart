@@ -59,4 +59,49 @@ void main() {
       await scheduler.close();
     },
   );
+
+  test(
+    'watch scheduler waits briefly after a build to coalesce late-arriving batches',
+    () async {
+      final startedFirstBuild = Completer<void>();
+      final releaseFirstBuild = Completer<void>();
+      final capturedBatches = <Map<AssetId, ChangeType>>[];
+      final assetA = AssetId('pkg', 'lib/a.dart');
+      final assetB = AssetId('pkg', 'lib/b.dart');
+      final assetC = AssetId('pkg', 'lib/c.dart');
+
+      final scheduler = FastWatchScheduler<Map<AssetId, ChangeType>>(
+        onBuild: (updates) async {
+          capturedBatches.add(Map<AssetId, ChangeType>.from(updates));
+          if (capturedBatches.length == 1) {
+            startedFirstBuild.complete();
+            await releaseFirstBuild.future;
+          }
+          return updates;
+        },
+        postBuildSettleDelay: const Duration(milliseconds: 80),
+      );
+
+      unawaited(scheduler.enqueue({assetA: ChangeType.MODIFY}));
+      await startedFirstBuild.future;
+      unawaited(scheduler.enqueue({assetB: ChangeType.ADD}));
+      releaseFirstBuild.complete();
+      unawaited(
+        Future<void>.delayed(const Duration(milliseconds: 20), () {
+          return scheduler.enqueue({assetC: ChangeType.MODIFY});
+        }),
+      );
+
+      await scheduler.waitForIdle();
+
+      expect(capturedBatches, hasLength(2));
+      expect(capturedBatches.first, {assetA: ChangeType.MODIFY});
+      expect(capturedBatches.last, {
+        assetB: ChangeType.ADD,
+        assetC: ChangeType.MODIFY,
+      });
+
+      await scheduler.close();
+    },
+  );
 }

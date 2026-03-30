@@ -36,6 +36,7 @@ class FastWatchAlphaSession {
     required int incrementalCycles,
     required int noiseFilesPerCycle,
     required bool continuousScheduling,
+    required int settleBuildDelayMs,
     required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
@@ -96,6 +97,7 @@ class FastWatchAlphaSession {
     final scheduler = FastWatchScheduler<BuildResult>(
       onBuild: (updates) =>
           buildSeries.run(updates, recentlyBootstrapped: false),
+      postBuildSettleDelay: Duration(milliseconds: settleBuildDelayMs),
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
     RustDaemonSession? rustClient;
@@ -291,6 +293,8 @@ class FastWatchAlphaSession {
             'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
           if (continuousScheduling)
             'Watch alpha kept collecting watch batches while builds were in flight.',
+          if (settleBuildDelayMs > 0)
+            'Watch alpha used a post-build settle window of ${settleBuildDelayMs}ms to coalesce bursty updates.',
           if (noiseFilesPerCycle > 0)
             'Watch alpha injected $noiseFilesPerCycle unrelated noise file(s) on every incremental cycle.',
           if (continuousScheduling &&

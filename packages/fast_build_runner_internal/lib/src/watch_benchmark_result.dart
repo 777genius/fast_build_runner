@@ -34,6 +34,7 @@ class FastWatchBenchmarkResult {
   final int noiseFilesPerCycle;
   final bool continuousScheduling;
   final int extraFixtureModels;
+  final int settleBuildDelayMs;
   final FastWatchBenchmarkEngineResult dart;
   final FastWatchBenchmarkEngineResult rust;
   final List<FastWatchBenchmarkEngineResult> dartSamples;
@@ -49,6 +50,7 @@ class FastWatchBenchmarkResult {
     required this.noiseFilesPerCycle,
     required this.continuousScheduling,
     required this.extraFixtureModels,
+    required this.settleBuildDelayMs,
     required this.dart,
     required this.rust,
     required this.dartSamples,
@@ -63,6 +65,7 @@ class FastWatchBenchmarkResult {
     required int noiseFilesPerCycle,
     required bool continuousScheduling,
     required int extraFixtureModels,
+    required int settleBuildDelayMs,
     required List<FastWatchBenchmarkEngineResult> dartSamples,
     required List<FastWatchBenchmarkEngineResult> rustSamples,
   }) {
@@ -93,6 +96,8 @@ class FastWatchBenchmarkResult {
         'Each watch cycle injected $noiseFilesPerCycle unrelated filesystem noise file(s) before batch collection.',
       if (continuousScheduling)
         'Continuous scheduling stayed subscribed to watch batches while builds were in flight.',
+      if (settleBuildDelayMs > 0)
+        'A post-build settle window of ${settleBuildDelayMs}ms was used to coalesce bursty updates.',
       if (extraFixtureModels > 0)
         'The copied benchmark fixture was expanded with $extraFixtureModels extra json_serializable model(s).',
     ];
@@ -112,6 +117,7 @@ class FastWatchBenchmarkResult {
       noiseFilesPerCycle: noiseFilesPerCycle,
       continuousScheduling: continuousScheduling,
       extraFixtureModels: extraFixtureModels,
+      settleBuildDelayMs: settleBuildDelayMs,
       dart: dart,
       rust: rust,
       dartSamples: dartSamples,
@@ -210,6 +216,7 @@ class FastWatchBenchmarkResult {
     'noiseFilesPerCycle': noiseFilesPerCycle,
     'continuousScheduling': continuousScheduling,
     'extraFixtureModels': extraFixtureModels,
+    'settleBuildDelayMs': settleBuildDelayMs,
     'dart': dart.toJson(),
     'rust': rust.toJson(),
     'dartSamples': dartSamples.map((sample) => sample.toJson()).toList(),
@@ -241,6 +248,7 @@ class FastWatchBenchmarkResult {
       'noiseFilesPerCycle: $noiseFilesPerCycle',
       'continuousScheduling: $continuousScheduling',
       'extraFixtureModels: $extraFixtureModels',
+      'settleBuildDelayMs: $settleBuildDelayMs',
       'dart: ${dart.elapsedMilliseconds} ms',
       'rust: ${rust.elapsedMilliseconds} ms',
       if (dartSamples.length > 1)
@@ -303,6 +311,7 @@ class FastWatchBenchmarkResult {
       ..writeln('- noise files per cycle: `$noiseFilesPerCycle`')
       ..writeln('- continuous scheduling: `$continuousScheduling`')
       ..writeln('- extra fixture models: `$extraFixtureModels`')
+      ..writeln('- post-build settle delay: `$settleBuildDelayMs ms`')
       ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
       ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
     if (dartSamples.length > 1) {

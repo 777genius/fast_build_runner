@@ -127,6 +127,12 @@ class FastBuildRunnerCli {
         defaultsTo: '0',
         help:
             'Generate extra json_serializable models inside the copied fixture to make the benchmark heavier.',
+      )
+      ..addOption(
+        'settle-build-delay-ms',
+        defaultsTo: '0',
+        help:
+            'Optional post-build settle window for coalescing another watch batch before scheduling the next rebuild.',
       );
 
     final parsed = parser.parse(args);
@@ -147,6 +153,7 @@ class FastBuildRunnerCli {
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
+      settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -201,6 +208,12 @@ class FastBuildRunnerCli {
             'Generate extra json_serializable models inside the copied fixture to make the benchmark heavier.',
       )
       ..addOption(
+        'settle-build-delay-ms',
+        defaultsTo: '0',
+        help:
+            'Optional post-build settle window for coalescing another watch batch before scheduling the next rebuild.',
+      )
+      ..addOption(
         'output',
         defaultsTo: 'json',
         allowed: const ['json', 'summary', 'markdown'],
@@ -225,6 +238,7 @@ class FastBuildRunnerCli {
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
+      settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

@@ -10,6 +10,7 @@ class FastWatchAlphaRequest {
   final int noiseFilesPerCycle;
   final bool continuousScheduling;
   final int extraFixtureModels;
+  final int settleBuildDelayMs;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -23,5 +24,6 @@ class FastWatchAlphaRequest {
     this.noiseFilesPerCycle = 0,
     this.continuousScheduling = false,
     this.extraFixtureModels = 0,
+    this.settleBuildDelayMs = 0,
   });
 }

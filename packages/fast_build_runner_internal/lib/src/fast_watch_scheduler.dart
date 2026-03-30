@@ -26,6 +26,7 @@ class FastWatchScheduledBuild<T> {
 
 class FastWatchScheduler<T> {
   final Future<T> Function(Map<AssetId, ChangeType> updates) _onBuild;
+  final Duration _postBuildSettleDelay;
   final StreamController<FastWatchScheduledBuild<T>> _resultsController =
       StreamController.broadcast();
 
@@ -33,10 +34,13 @@ class FastWatchScheduler<T> {
   Future<void>? _pumpFuture;
   Completer<void> _idleCompleter = Completer<void>()..complete();
   bool _closed = false;
+  DateTime? _lastEnqueueAt;
 
   FastWatchScheduler({
     required Future<T> Function(Map<AssetId, ChangeType>) onBuild,
-  }) : _onBuild = onBuild;
+    Duration postBuildSettleDelay = Duration.zero,
+  }) : _onBuild = onBuild,
+       _postBuildSettleDelay = postBuildSettleDelay;
 
   Stream<FastWatchScheduledBuild<T>> get results => _resultsController.stream;
 
@@ -50,6 +54,7 @@ class FastWatchScheduler<T> {
       return waitForIdle();
     }
     _pendingUpdates = mergeAssetChangeMaps([_pendingUpdates, updates]);
+    _lastEnqueueAt = DateTime.now();
     if (_idleCompleter.isCompleted) {
       _idleCompleter = Completer<void>();
     }
@@ -83,12 +88,30 @@ class FastWatchScheduler<T> {
             result: result,
           ),
         );
+        if (_pendingUpdates.isNotEmpty) {
+          await _waitForPostBuildSettleWindow();
+        }
       }
     } finally {
       _pumpFuture = null;
       if (!_idleCompleter.isCompleted) {
         _idleCompleter.complete();
       }
+    }
+  }
+
+  Future<void> _waitForPostBuildSettleWindow() async {
+    if (_postBuildSettleDelay <= Duration.zero) {
+      return;
+    }
+    final lastEnqueueAt = _lastEnqueueAt;
+    if (lastEnqueueAt == null) {
+      return;
+    }
+    final elapsedSinceLastEnqueue = DateTime.now().difference(lastEnqueueAt);
+    final remainingDelay = _postBuildSettleDelay - elapsedSinceLastEnqueue;
+    if (remainingDelay > Duration.zero) {
+      await Future<void>.delayed(remainingDelay);
     }
   }
 }
