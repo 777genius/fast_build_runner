@@ -154,6 +154,40 @@ void main() {
   );
 
   test(
+    'watch alpha can use the upstream build_runner watch loop as the baseline engine',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath: '$repoRoot/.dart_tool/test_watch_alpha_upstream',
+          keepRunDirectory: false,
+          sourceEngine: 'upstream',
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.sourceEngine, 'upstream');
+      expect(result.initialBuild, isNotNull);
+      expect(result.incrementalBuild, isNotNull);
+      expect(result.incrementalBuilds, hasLength(1));
+      expect(result.watchCollectionMilliseconds, isEmpty);
+      expect(result.initialBuild!.status, 'success');
+      expect(result.incrementalBuild!.status, 'success');
+      expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
+      expect(
+        result.warnings,
+        contains(
+          'Watch alpha used the upstream build_runner watch loop as the baseline runtime.',
+        ),
+      );
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
     'watch alpha can execute multiple incremental cycles before exiting',
     () async {
       final repoRoot = Directory.current.path;

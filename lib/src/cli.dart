@@ -103,7 +103,7 @@ class FastBuildRunnerCli {
       ..addOption(
         'source-engine',
         defaultsTo: 'dart',
-        allowed: const ['dart', 'rust'],
+        allowed: const ['dart', 'rust', 'upstream'],
         help: 'Filesystem event source used by watch alpha.',
       )
       ..addOption(

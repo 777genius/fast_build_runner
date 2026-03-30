@@ -4,6 +4,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:build/build.dart';
+import 'package:build_runner/src/commands/watch/watcher.dart' as upstream_watch;
 import 'package:build_runner/src/internal.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:path/path.dart' as p;
@@ -46,6 +47,20 @@ class FastWatchAlphaSession {
     required bool mutateBuildScriptBeforeIncremental,
     required bool simulateDroppedSourceUpdateOnIncremental,
   }) async {
+    if (sourceEngine == 'upstream') {
+      return _runUpstreamWatchSession(
+        incrementalCycles: incrementalCycles,
+        noiseFilesPerCycle: noiseFilesPerCycle,
+        packageName: packageName,
+        sourceFileRelativePath: sourceFileRelativePath,
+        generatedFileRelativePath: generatedFileRelativePath,
+        generatedEntrypointPath: generatedEntrypointPath,
+        runDirectory: runDirectory,
+        mutateBuildScriptBeforeIncremental:
+            mutateBuildScriptBeforeIncremental,
+      );
+    }
+
     final buildPlan = await FastBuildPlan.load(
       builderFactories: builderFactories,
       buildOptions: BuildOptions(
@@ -345,6 +360,168 @@ class FastWatchAlphaSession {
       await resultSubscription?.cancel();
       await scheduler.close();
       await buildSeries.close();
+    }
+  }
+
+  Future<FastWatchAlphaResult> _runUpstreamWatchSession({
+    required int incrementalCycles,
+    required int noiseFilesPerCycle,
+    required String packageName,
+    required String sourceFileRelativePath,
+    required String generatedFileRelativePath,
+    required String generatedEntrypointPath,
+    required String runDirectory,
+    required bool mutateBuildScriptBeforeIncremental,
+  }) async {
+    final buildPlan = await BuildPlan.load(
+      builderFactories: builderFactories,
+      buildOptions: BuildOptions(
+        buildDirs: BuiltSet<BuildDirectory>(),
+        builderConfigOverrides: BuiltMap<String, BuiltMap<String, Object?>>(),
+        buildFilters: BuiltSet<BuildFilter>(),
+        configKey: null,
+        dartAotPerf: false,
+        enableExperiments: BuiltList<String>(),
+        enableLowResourcesMode: false,
+        forceAot: false,
+        forceJit: false,
+        isReleaseBuild: false,
+        logPerformanceDir: null,
+        outputSymlinksOnly: false,
+        trackPerformance: false,
+        verbose: false,
+        verboseDurations: false,
+        workspace: false,
+      ),
+      testingOverrides: const TestingOverrides(),
+      recentlyBootstrapped: true,
+    );
+
+    await buildPlan.deleteFilesAndFolders();
+    if (buildPlan.restartIsNeeded) {
+      return FastWatchAlphaResult(
+        status: 'deferred',
+        sourceEngine: 'upstream',
+        upstreamCommit: upstreamCommit,
+        generatedEntrypointPath: generatedEntrypointPath,
+        runDirectory: runDirectory,
+        warnings: const [
+          'Upstream BuildPlan reported restartIsNeeded during watch alpha bootstrap.',
+        ],
+        errors: const [],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: null,
+        incrementalBuild: null,
+        incrementalBuilds: const [],
+      );
+    }
+
+    final until = Completer<void>();
+    final buildResults = StreamIterator<BuildResult>(
+      upstream_watch.Watcher(
+        buildPlan: buildPlan,
+        until: until.future,
+      ).buildResults,
+    );
+
+    try {
+      final initialStopwatch = Stopwatch()..start();
+      final hasInitialResult = await buildResults.moveNext().timeout(
+        _watchTimeout,
+        onTimeout: () => throw TimeoutException(
+          'Timed out waiting for the upstream watcher initial build result.',
+        ),
+      );
+      initialStopwatch.stop();
+      if (!hasInitialResult) {
+        throw StateError(
+          'Upstream watcher completed before emitting an initial build result.',
+        );
+      }
+      final initialResult = _stepResult(
+        name: 'initial',
+        elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
+        buildResult: buildResults.current,
+        generatedFileRelativePath: generatedFileRelativePath,
+      );
+
+      final incrementalResults = <FastBuildStepResult>[];
+      for (var cycleIndex = 0; cycleIndex < incrementalCycles; cycleIndex++) {
+        final incrementalStopwatch = Stopwatch()..start();
+        await _performWatchMutation(
+          sourceFileRelativePath: sourceFileRelativePath,
+          generatedEntrypointPath: generatedEntrypointPath,
+          noiseFilesPerCycle: noiseFilesPerCycle,
+          mutateBuildScriptBeforeIncremental:
+              cycleIndex == 0 && mutateBuildScriptBeforeIncremental,
+          cycleIndex: cycleIndex,
+        );
+        final hasIncrementalResult = await buildResults.moveNext().timeout(
+          _watchTimeout,
+          onTimeout: () => throw TimeoutException(
+            'Timed out waiting for upstream watcher build #${cycleIndex + 2}.',
+          ),
+        );
+        incrementalStopwatch.stop();
+        if (!hasIncrementalResult) {
+          throw StateError(
+            'Upstream watcher completed before incremental build #${cycleIndex + 1}.',
+          );
+        }
+        incrementalResults.add(
+          _stepResult(
+            name: 'incremental-${cycleIndex + 1}',
+            elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
+            buildResult: buildResults.current,
+            generatedFileRelativePath: generatedFileRelativePath,
+          ),
+        );
+      }
+
+      final lastIncremental = incrementalResults.isEmpty
+          ? null
+          : incrementalResults.last;
+      final success =
+          initialResult.status == 'success' &&
+          lastIncremental != null &&
+          incrementalResults.every((step) => step.status == 'success') &&
+          incrementalResults.every((step) => step.generatedFileHasMutation);
+
+      return FastWatchAlphaResult(
+        status: success ? 'success' : 'failure',
+        sourceEngine: 'upstream',
+        upstreamCommit: upstreamCommit,
+        generatedEntrypointPath: generatedEntrypointPath,
+        runDirectory: runDirectory,
+        warnings: [
+          'Watch alpha used the upstream build_runner watch loop as the baseline runtime.',
+          if (incrementalCycles > 1)
+            'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
+          if (noiseFilesPerCycle > 0)
+            'Watch alpha injected $noiseFilesPerCycle unrelated noise file(s) on every incremental cycle.',
+        ],
+        errors: [
+          ...initialResult.errors,
+          ...incrementalResults.expand((step) => step.errors),
+          if (incrementalResults.any((step) => !step.generatedFileHasMutation))
+            'Upstream watch alpha finished at least one incremental rebuild without the expected generated output mutation.',
+        ],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: initialResult,
+        incrementalBuild: lastIncremental,
+        incrementalBuilds: incrementalResults,
+      );
+    } finally {
+      if (!until.isCompleted) {
+        until.complete();
+      }
+      await buildResults.cancel();
     }
   }
 
