@@ -1,40 +1,160 @@
 # fast_build_runner
 
-`fast_build_runner` is a companion tool for `build_runner` focused on making
-incremental Flutter/Dart code generation faster without forking the whole
-`dart-lang/build` stack.
+`fast_build_runner` is an experimental companion for `build_runner`.
 
-The project direction is:
+It keeps builders, analyzer, and code generation in Dart, but moves the hot
+incremental orchestration path toward a Rust-backed watch/update pipeline. The
+goal is not a deep fork of `dart-lang/build`, but a faster path for `watch`,
+`no-op`, and small incremental rebuilds.
 
-- keep `analyzer`, builders, and code generation in Dart
-- move hot-path incremental orchestration into a Rust daemon
-- integrate with `build_runner` through internal APIs instead of a deep fork
-- optimize `watch`, `no-op`, and small incremental builds first
+## Current State
 
-## Core Idea
+What is already working in this repository:
 
-`fast_build_runner` does not try to replace the whole build ecosystem.
-Instead, it aims to:
+- custom bootstrap path with real upstream `BuilderFactories`
+- child-side execution path around `BuildPlan` and `BuildSeries`
+- watch-alpha flow on top of that runtime
+- Rust daemon with a JSON protocol and filesystem `watch_once`
+- Rust-backed watch source engine wired into the custom runtime
+- multi-cycle incremental watch runs
+- benchmark command that compares `dart` and `rust` source engines on the same fixture
 
-- watch files faster
-- maintain a persistent import/dependency graph
-- compute affected inputs quickly
-- batch and classify file changes
-- feed smarter updates into `build_runner`
+What this is **not** yet:
+
+- a drop-in replacement for `dart run build_runner watch`
+- a production-ready compatibility layer for every builder topology
+- a full invalidation engine replacement
+- a full workspace / post-process / lazy-phase solution
 
 ## Why This Exists
 
-`build_runner` performance problems are real, but they are not all caused by
-one thing. The current evidence points to a mix of:
+`build_runner` can be slow for several different reasons, but the most
+practical place to attack first is the incremental path:
 
-- startup overhead
-- import graph invalidation
-- repeated parsing / dependency analysis
-- analyzer-heavy builders
-- unnecessary or overly broad rebuild scheduling
+- startup and bootstrap overhead
+- watcher batching and change ingestion
+- broad change invalidation
+- repeated rebuild scheduling on small edits
 
-The highest-leverage place for a new implementation is the incremental path,
-not a full rewrite of analyzer or builder execution.
+The current project direction is:
+
+- keep `analyzer`, builders, and actual codegen in Dart
+- keep upstream `build_runner` semantics as close as possible
+- replace only the hot watch/update path where that gives leverage
+
+## What To Run
+
+All commands below run from this repository root.
+
+Bootstrap seam proof:
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-bootstrap
+```
+
+Single watch-alpha run on the Dart source engine:
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
+  --source-engine=dart
+```
+
+Single watch-alpha run on the Rust source engine:
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
+  --source-engine=rust
+```
+
+Multi-cycle watch-alpha run:
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
+  --source-engine=rust \
+  --incremental-cycles=2
+```
+
+Benchmark summary comparing the two source engines:
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
+  --incremental-cycles=1
+```
+
+The benchmark command prints machine-readable JSON with:
+
+- elapsed milliseconds for `dart`
+- elapsed milliseconds for `rust`
+- nested watch-alpha results for both runs
+- computed `rustSpeedupVsDart`
+
+## Current Architecture
+
+High-level shape:
+
+```text
+fixture / target project
+        |
+        v
+fast_build_runner CLI
+        |
+        v
+custom generated entrypoint
+        |
+        v
+child-side runtime
+  - BuildPlan
+  - BuildSeries
+  - watch scheduler
+        |
+        +--> Dart watcher source engine
+        |
+        +--> Rust daemon source engine
+```
+
+The currently pinned upstream research commit is:
+
+- `2b1450e313a188a1027f04940e0e4e82372d6530`
+
+Upstream research source of truth lives in:
+
+- `research/dart-build/`
+
+## Useful Commands
+
+Analyze:
+
+```bash
+/Users/belief/dev/flutter/bin/dart analyze
+```
+
+Core regression tests:
+
+```bash
+/Users/belief/dev/flutter/bin/dart test \
+  test/bootstrap_spike_test.dart \
+  test/watch_alpha_test.dart \
+  test/rust_daemon_client_test.dart \
+  test/watch_benchmark_test.dart
+```
+
+Rust daemon tests:
+
+```bash
+cd native/daemon && cargo test
+```
+
+## Main Constraints
+
+The project still has important limits:
+
+- analyzer-heavy builders are still bounded by upstream Dart-side costs
+- full build-script freshness parity is still narrower than upstream
+- the Rust daemon is currently a source-engine component, not a full graph daemon
+- benchmark numbers are still dominated by upstream initial build cost on the tiny fixture
+
+That means the current benchmark is a **correctness and integration benchmark**,
+not yet a strong public performance claim.
 
 ## Project Documents
 
@@ -53,60 +173,3 @@ not a full rewrite of analyzer or builder execution.
 - [Iteration 05: Graph and Invalidation Engine](./docs/iterations/05-graph-and-invalidation.md)
 - [Iteration 06: Benchmarks and Compatibility](./docs/iterations/06-benchmarks-and-compatibility.md)
 - [Iteration 07: Build Mode and AOT Expansion](./docs/iterations/07-build-mode-and-aot.md)
-
-## Current Scope
-
-The chosen implementation path is immediate **internal integration**.
-
-That means the first serious implementation is not a weak wrapper-only MVP.
-It is:
-
-- Rust daemon manages file watching and project graph state
-- Dart internal adapter drives `BuildPlan` and `BuildSeries`
-- updates are supplied by our own integration layer
-- alpha may still reuse `BuildSeries.filterChanges(...)` and
-  `checkForChanges()` for correctness
-- standard `build_runner` remains the fallback path
-
-The project is therefore explicitly targeting strong acceleration from the
-start, while still avoiding a deep upstream fork.
-
-The currently pinned upstream `build_runner` research commit is:
-
-- `2b1450e313a188a1027f04940e0e4e82372d6530`
-
-One major constraint from the real upstream code is now fixed in the plan:
-
-- external code does not directly get runtime `BuilderFactories`
-- upstream materializes them inside the generated build script entrypoint
-
-So `fast_build_runner` must include a custom bootstrap path, not only a custom
-watch loop.
-
-## Upstream Study Basis
-
-The planning in this repository is based on a local clone of `dart-lang/build`
-kept under:
-
-- `research/dart-build/`
-
-That clone is used as the source of truth for:
-
-- internal entry points
-- restart/freshness flow
-- build graph update semantics
-- watcher integration limits
-- resolver concurrency limits
-- secondary-input invalidation behavior
-- optional/lazy and post-process semantics
-
-## High-Level Non-Goals
-
-- replacing `analyzer`
-- rewriting builders
-- forking `dart-lang/build` long-term
-- immediately supporting every `serve` and workspace edge case
-
-## Status
-
-Planning and implementation scaffolding.
