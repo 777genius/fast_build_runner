@@ -156,6 +156,12 @@ class FastBuildRunnerCli {
         'incremental-cycles',
         defaultsTo: '1',
         help: 'Number of incremental cycles per engine.',
+      )
+      ..addOption(
+        'output',
+        defaultsTo: 'json',
+        allowed: const ['json', 'summary', 'markdown'],
+        help: 'How to print the benchmark result.',
       );
 
     final parsed = parser.parse(args);
@@ -174,7 +180,20 @@ class FastBuildRunnerCli {
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
     );
     final result = await FastWatchBenchmarkRunner().run(request);
-    stdout.writeln(const JsonEncoder.withIndent('  ').convert(result.toJson()));
+    switch (parsed['output'] as String) {
+      case 'summary':
+        stdout.writeln(result.toSummaryLines().join('\n'));
+        break;
+      case 'markdown':
+        stdout.writeln(result.toMarkdown());
+        break;
+      case 'json':
+      default:
+        stdout.writeln(
+          const JsonEncoder.withIndent('  ').convert(result.toJson()),
+        );
+        break;
+    }
     return result.exitCode;
   }
 

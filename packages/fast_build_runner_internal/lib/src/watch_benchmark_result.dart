@@ -58,4 +58,63 @@ class FastWatchBenchmarkResult {
     'warnings': warnings,
     'errors': errors,
   };
+
+  List<String> toSummaryLines() {
+    final lines = <String>[
+      'fast_build_runner watch benchmark',
+      'status: $status',
+      'incrementalCycles: $incrementalCycles',
+      'dart: ${dart.elapsedMilliseconds} ms',
+      'rust: ${rust.elapsedMilliseconds} ms',
+      if (rustSpeedupVsDart != null)
+        'rustSpeedupVsDart: ${rustSpeedupVsDart!.toStringAsFixed(2)}x',
+      'dartResult: ${dart.result.status}',
+      'rustResult: ${rust.result.status}',
+    ];
+    if (warnings.isNotEmpty) {
+      lines.add('warnings:');
+      lines.addAll(warnings.map((warning) => '- $warning'));
+    }
+    if (errors.isNotEmpty) {
+      lines.add('errors:');
+      lines.addAll(errors.map((error) => '- $error'));
+    }
+    return lines;
+  }
+
+  String toMarkdown() {
+    final buffer = StringBuffer()
+      ..writeln('# fast_build_runner watch benchmark')
+      ..writeln()
+      ..writeln('- status: `$status`')
+      ..writeln('- incremental cycles: `$incrementalCycles`')
+      ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
+      ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
+    if (rustSpeedupVsDart != null) {
+      buffer.writeln(
+        '- rust speedup vs dart: `${rustSpeedupVsDart!.toStringAsFixed(2)}x`',
+      );
+    }
+    buffer
+      ..writeln('- dart result: `${dart.result.status}`')
+      ..writeln('- rust result: `${rust.result.status}`');
+
+    if (warnings.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('## Warnings');
+      for (final warning in warnings) {
+        buffer.writeln('- $warning');
+      }
+    }
+    if (errors.isNotEmpty) {
+      buffer
+        ..writeln()
+        ..writeln('## Errors');
+      for (final error in errors) {
+        buffer.writeln('- $error');
+      }
+    }
+    return buffer.toString().trimRight();
+  }
 }
