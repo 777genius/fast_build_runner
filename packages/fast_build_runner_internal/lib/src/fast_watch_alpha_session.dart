@@ -397,7 +397,7 @@ class FastWatchAlphaSession {
         sourceFileRelativePath: sourceFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
       ),
-      warmupMs: 250,
+      warmupMs: 125,
     );
     if (readyResponse is RustDaemonErrorResponse) {
       throw StateError('Rust daemon startWatch failed: ${readyResponse.message}');
