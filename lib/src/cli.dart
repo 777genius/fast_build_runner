@@ -158,6 +158,12 @@ class FastBuildRunnerCli {
         help: 'Number of incremental cycles per engine.',
       )
       ..addOption(
+        'repeats',
+        defaultsTo: '1',
+        help:
+            'How many runs to execute per engine before choosing the median sample.',
+      )
+      ..addOption(
         'output',
         defaultsTo: 'json',
         allowed: const ['json', 'summary', 'markdown'],
@@ -178,6 +184,7 @@ class FastBuildRunnerCli {
       ),
       keepRunDirectory: parsed['keep-run-dir'] as bool,
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
+      repeats: int.parse(parsed['repeats'] as String),
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

@@ -11,12 +11,12 @@ class FastWatchBenchmarkRunner {
   Future<FastWatchBenchmarkResult> run(
     FastWatchBenchmarkRequest request,
   ) async {
-    final dartRun = await _runCase(
+    final dartRuns = await _runCases(
       sourceEngine: 'dart',
       workDirectoryPath: p.join(request.workDirectoryPath, 'dart'),
       request: request,
     );
-    final rustRun = await _runCase(
+    final rustRuns = await _runCases(
       sourceEngine: 'rust',
       workDirectoryPath: p.join(request.workDirectoryPath, 'rust'),
       request: request,
@@ -24,32 +24,38 @@ class FastWatchBenchmarkRunner {
 
     return FastWatchBenchmarkResult.fromRuns(
       incrementalCycles: request.incrementalCycles,
-      dart: dartRun,
-      rust: rustRun,
+      dartSamples: dartRuns,
+      rustSamples: rustRuns,
     );
   }
 
-  Future<FastWatchBenchmarkEngineResult> _runCase({
+  Future<List<FastWatchBenchmarkEngineResult>> _runCases({
     required String sourceEngine,
     required String workDirectoryPath,
     required FastWatchBenchmarkRequest request,
   }) async {
-    final stopwatch = Stopwatch()..start();
-    final result = await FastWatchAlphaRunner().run(
-      FastWatchAlphaRequest(
-        repoRoot: request.repoRoot,
-        fixtureTemplatePath: request.fixtureTemplatePath,
-        workDirectoryPath: workDirectoryPath,
-        keepRunDirectory: request.keepRunDirectory,
-        sourceEngine: sourceEngine,
-        incrementalCycles: request.incrementalCycles,
-      ),
-    );
-    stopwatch.stop();
-    return FastWatchBenchmarkEngineResult(
-      sourceEngine: sourceEngine,
-      elapsedMilliseconds: stopwatch.elapsedMilliseconds,
-      result: result,
-    );
+    final samples = <FastWatchBenchmarkEngineResult>[];
+    for (var i = 0; i < request.repeats; i++) {
+      final stopwatch = Stopwatch()..start();
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: request.repoRoot,
+          fixtureTemplatePath: request.fixtureTemplatePath,
+          workDirectoryPath: p.join(workDirectoryPath, 'run-${i + 1}'),
+          keepRunDirectory: request.keepRunDirectory,
+          sourceEngine: sourceEngine,
+          incrementalCycles: request.incrementalCycles,
+        ),
+      );
+      stopwatch.stop();
+      samples.add(
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: sourceEngine,
+          elapsedMilliseconds: stopwatch.elapsedMilliseconds,
+          result: result,
+        ),
+      );
+    }
+    return samples;
   }
 }

@@ -19,8 +19,11 @@ void main() {
 
       expect(result.status, 'success');
       expect(result.incrementalCycles, 1);
+      expect(result.repeats, 1);
       expect(result.dart.sourceEngine, 'dart');
       expect(result.rust.sourceEngine, 'rust');
+      expect(result.dartSamples, hasLength(1));
+      expect(result.rustSamples, hasLength(1));
       expect(result.dart.result.isSuccess, isTrue);
       expect(result.rust.result.isSuccess, isTrue);
       expect(result.dart.elapsedMilliseconds, greaterThan(0));
@@ -36,6 +39,7 @@ void main() {
     final result = FastWatchBenchmarkResult(
       status: 'success',
       incrementalCycles: 2,
+      repeats: 2,
       dart: FastWatchBenchmarkEngineResult(
         sourceEngine: 'dart',
         elapsedMilliseconds: 1200,
@@ -134,6 +138,90 @@ void main() {
           ],
         ),
       ),
+      dartSamples: const [
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1200,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-dart-1',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1400,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-dart-2',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+      ],
+      rustSamples: const [
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 800,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-rust-1',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 900,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-rust-2',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+      ],
       rustSpeedupVsDart: 1.5,
       warnings: const ['speedup is illustrative'],
       errors: const [],
@@ -143,6 +231,9 @@ void main() {
     final markdown = result.toMarkdown();
 
     expect(summary, contains('dart: 1200 ms'));
+    expect(summary, contains('repeats: 2'));
+    expect(summary, contains('dartSamples: 1200, 1400'));
+    expect(summary, contains('rustSamples: 800, 900'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
     expect(summary, contains('rustIncrementalBuild: 80 ms'));
     expect(summary, contains('rustInitialBuildSpeedupVsDart: 1.06x'));
@@ -162,43 +253,33 @@ void main() {
     () {
       final result = FastWatchBenchmarkResult.fromRuns(
         incrementalCycles: 1,
-        dart: FastWatchBenchmarkEngineResult(
-          sourceEngine: 'dart',
-          elapsedMilliseconds: 1000,
-          result: const FastWatchAlphaResult(
-            status: 'success',
+        dartSamples: const [
+          FastWatchBenchmarkEngineResult(
             sourceEngine: 'dart',
-            upstreamCommit: 'commit',
-            generatedEntrypointPath: 'entrypoint',
-            runDirectory: 'run-dart',
-            warnings: [],
-            errors: [],
-            observedEvents: [],
-            mergedUpdates: [],
-            observedEventBatches: [],
-            mergedUpdateBatches: [],
-            initialBuild: FastBuildStepResult(
-              name: 'initial',
-              elapsedMilliseconds: 900,
+            elapsedMilliseconds: 1000,
+            result: FastWatchAlphaResult(
               status: 'success',
-              failureType: null,
-              outputs: [],
+              sourceEngine: 'dart',
+              upstreamCommit: 'commit',
+              generatedEntrypointPath: 'entrypoint',
+              runDirectory: 'run-dart',
+              warnings: [],
               errors: [],
-              generatedFileExists: true,
-              generatedFileHasMutation: false,
-            ),
-            incrementalBuild: FastBuildStepResult(
-              name: 'incremental-1',
-              elapsedMilliseconds: 200,
-              status: 'success',
-              failureType: null,
-              outputs: [],
-              errors: [],
-              generatedFileExists: true,
-              generatedFileHasMutation: true,
-            ),
-            incrementalBuilds: [
-              FastBuildStepResult(
+              observedEvents: [],
+              mergedUpdates: [],
+              observedEventBatches: [],
+              mergedUpdateBatches: [],
+              initialBuild: FastBuildStepResult(
+                name: 'initial',
+                elapsedMilliseconds: 900,
+                status: 'success',
+                failureType: null,
+                outputs: [],
+                errors: [],
+                generatedFileExists: true,
+                generatedFileHasMutation: false,
+              ),
+              incrementalBuild: FastBuildStepResult(
                 name: 'incremental-1',
                 elapsedMilliseconds: 200,
                 status: 'success',
@@ -208,46 +289,48 @@ void main() {
                 generatedFileExists: true,
                 generatedFileHasMutation: true,
               ),
-            ],
+              incrementalBuilds: [
+                FastBuildStepResult(
+                  name: 'incremental-1',
+                  elapsedMilliseconds: 200,
+                  status: 'success',
+                  failureType: null,
+                  outputs: [],
+                  errors: [],
+                  generatedFileExists: true,
+                  generatedFileHasMutation: true,
+                ),
+              ],
+            ),
           ),
-        ),
-        rust: FastWatchBenchmarkEngineResult(
-          sourceEngine: 'rust',
-          elapsedMilliseconds: 950,
-          result: const FastWatchAlphaResult(
-            status: 'success',
+        ],
+        rustSamples: const [
+          FastWatchBenchmarkEngineResult(
             sourceEngine: 'rust',
-            upstreamCommit: 'commit',
-            generatedEntrypointPath: 'entrypoint',
-            runDirectory: 'run-rust',
-            warnings: [],
-            errors: [],
-            observedEvents: [],
-            mergedUpdates: [],
-            observedEventBatches: [],
-            mergedUpdateBatches: [],
-            initialBuild: FastBuildStepResult(
-              name: 'initial',
-              elapsedMilliseconds: 890,
+            elapsedMilliseconds: 950,
+            result: FastWatchAlphaResult(
               status: 'success',
-              failureType: null,
-              outputs: [],
+              sourceEngine: 'rust',
+              upstreamCommit: 'commit',
+              generatedEntrypointPath: 'entrypoint',
+              runDirectory: 'run-rust',
+              warnings: [],
               errors: [],
-              generatedFileExists: true,
-              generatedFileHasMutation: false,
-            ),
-            incrementalBuild: FastBuildStepResult(
-              name: 'incremental-1',
-              elapsedMilliseconds: 100,
-              status: 'success',
-              failureType: null,
-              outputs: [],
-              errors: [],
-              generatedFileExists: true,
-              generatedFileHasMutation: true,
-            ),
-            incrementalBuilds: [
-              FastBuildStepResult(
+              observedEvents: [],
+              mergedUpdates: [],
+              observedEventBatches: [],
+              mergedUpdateBatches: [],
+              initialBuild: FastBuildStepResult(
+                name: 'initial',
+                elapsedMilliseconds: 890,
+                status: 'success',
+                failureType: null,
+                outputs: [],
+                errors: [],
+                generatedFileExists: true,
+                generatedFileHasMutation: false,
+              ),
+              incrementalBuild: FastBuildStepResult(
                 name: 'incremental-1',
                 elapsedMilliseconds: 100,
                 status: 'success',
@@ -257,11 +340,24 @@ void main() {
                 generatedFileExists: true,
                 generatedFileHasMutation: true,
               ),
-            ],
+              incrementalBuilds: [
+                FastBuildStepResult(
+                  name: 'incremental-1',
+                  elapsedMilliseconds: 100,
+                  status: 'success',
+                  failureType: null,
+                  outputs: [],
+                  errors: [],
+                  generatedFileExists: true,
+                  generatedFileHasMutation: true,
+                ),
+              ],
+            ),
           ),
-        ),
+        ],
       );
 
+      expect(result.repeats, 1);
       expect(
         result.warnings,
         contains(
@@ -270,4 +366,138 @@ void main() {
       );
     },
   );
+
+  test('watch benchmark chooses the median sample for each engine', () {
+    final result = FastWatchBenchmarkResult.fromRuns(
+      incrementalCycles: 1,
+      dartSamples: const [
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1500,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'dart-1',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1000,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'dart-2',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1300,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'dart-3',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+      ],
+      rustSamples: const [
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 1100,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'rust-1',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 900,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'rust-2',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 1000,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'rust-3',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+      ],
+    );
+
+    expect(result.repeats, 3);
+    expect(result.dart.elapsedMilliseconds, 1300);
+    expect(result.rust.elapsedMilliseconds, 1000);
+  });
 }

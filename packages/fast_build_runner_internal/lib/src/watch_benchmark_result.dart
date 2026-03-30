@@ -30,8 +30,11 @@ class FastWatchBenchmarkEngineResult {
 class FastWatchBenchmarkResult {
   final String status;
   final int incrementalCycles;
+  final int repeats;
   final FastWatchBenchmarkEngineResult dart;
   final FastWatchBenchmarkEngineResult rust;
+  final List<FastWatchBenchmarkEngineResult> dartSamples;
+  final List<FastWatchBenchmarkEngineResult> rustSamples;
   final double? rustSpeedupVsDart;
   final List<String> warnings;
   final List<String> errors;
@@ -39,8 +42,11 @@ class FastWatchBenchmarkResult {
   const FastWatchBenchmarkResult({
     required this.status,
     required this.incrementalCycles,
+    required this.repeats,
     required this.dart,
     required this.rust,
+    required this.dartSamples,
+    required this.rustSamples,
     required this.rustSpeedupVsDart,
     required this.warnings,
     required this.errors,
@@ -48,15 +54,20 @@ class FastWatchBenchmarkResult {
 
   factory FastWatchBenchmarkResult.fromRuns({
     required int incrementalCycles,
-    required FastWatchBenchmarkEngineResult dart,
-    required FastWatchBenchmarkEngineResult rust,
+    required List<FastWatchBenchmarkEngineResult> dartSamples,
+    required List<FastWatchBenchmarkEngineResult> rustSamples,
   }) {
+    if (dartSamples.isEmpty || rustSamples.isEmpty) {
+      throw StateError('Benchmark samples must not be empty.');
+    }
+    final dart = _medianSample(dartSamples);
+    final rust = _medianSample(rustSamples);
     final rustSpeedupVsDart = rust.elapsedMilliseconds > 0
         ? dart.elapsedMilliseconds / rust.elapsedMilliseconds
         : null;
     final rustIncrementalBuildSpeedupVsDart =
         dart.result.incrementalBuild != null &&
-                rust.result.incrementalBuild != null &&
+            rust.result.incrementalBuild != null &&
             rust.result.incrementalBuild!.elapsedMilliseconds > 0
         ? dart.result.incrementalBuild!.elapsedMilliseconds /
               rust.result.incrementalBuild!.elapsedMilliseconds
@@ -80,8 +91,13 @@ class FastWatchBenchmarkResult {
     return FastWatchBenchmarkResult(
       status: errors.isEmpty ? 'success' : 'failure',
       incrementalCycles: incrementalCycles,
+      repeats: dartSamples.length < rustSamples.length
+          ? dartSamples.length
+          : rustSamples.length,
       dart: dart,
       rust: rust,
+      dartSamples: dartSamples,
+      rustSamples: rustSamples,
       rustSpeedupVsDart: rustSpeedupVsDart,
       warnings: warnings,
       errors: errors,
@@ -113,8 +129,11 @@ class FastWatchBenchmarkResult {
   Map<String, Object?> toJson() => {
     'status': status,
     'incrementalCycles': incrementalCycles,
+    'repeats': repeats,
     'dart': dart.toJson(),
     'rust': rust.toJson(),
+    'dartSamples': dartSamples.map((sample) => sample.toJson()).toList(),
+    'rustSamples': rustSamples.map((sample) => sample.toJson()).toList(),
     'rustSpeedupVsDart': rustSpeedupVsDart,
     'rustInitialBuildSpeedupVsDart': rustInitialBuildSpeedupVsDart,
     'rustIncrementalBuildSpeedupVsDart': rustIncrementalBuildSpeedupVsDart,
@@ -127,8 +146,13 @@ class FastWatchBenchmarkResult {
       'fast_build_runner watch benchmark',
       'status: $status',
       'incrementalCycles: $incrementalCycles',
+      'repeats: $repeats',
       'dart: ${dart.elapsedMilliseconds} ms',
       'rust: ${rust.elapsedMilliseconds} ms',
+      if (dartSamples.length > 1)
+        'dartSamples: ${dartSamples.map((sample) => sample.elapsedMilliseconds).join(', ')}',
+      if (rustSamples.length > 1)
+        'rustSamples: ${rustSamples.map((sample) => sample.elapsedMilliseconds).join(', ')}',
       if (dart.result.initialBuild != null)
         'dartInitialBuild: ${dart.result.initialBuild!.elapsedMilliseconds} ms',
       if (rust.result.initialBuild != null)
@@ -163,8 +187,19 @@ class FastWatchBenchmarkResult {
       ..writeln()
       ..writeln('- status: `$status`')
       ..writeln('- incremental cycles: `$incrementalCycles`')
+      ..writeln('- repeats: `$repeats`')
       ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
       ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
+    if (dartSamples.length > 1) {
+      buffer.writeln(
+        '- dart samples: `${dartSamples.map((sample) => sample.elapsedMilliseconds).join(', ')}`',
+      );
+    }
+    if (rustSamples.length > 1) {
+      buffer.writeln(
+        '- rust samples: `${rustSamples.map((sample) => sample.elapsedMilliseconds).join(', ')}`',
+      );
+    }
     if (dart.result.initialBuild != null) {
       buffer.writeln(
         '- dart initial build: `${dart.result.initialBuild!.elapsedMilliseconds} ms`',
@@ -222,4 +257,12 @@ class FastWatchBenchmarkResult {
     }
     return buffer.toString().trimRight();
   }
+}
+
+FastWatchBenchmarkEngineResult _medianSample(
+  List<FastWatchBenchmarkEngineResult> samples,
+) {
+  final sorted = [...samples]
+    ..sort((a, b) => a.elapsedMilliseconds.compareTo(b.elapsedMilliseconds));
+  return sorted[(sorted.length - 1) ~/ 2];
 }
