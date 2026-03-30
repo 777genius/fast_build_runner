@@ -8,3 +8,7 @@ export 'src/fast_build_plan.dart';
 export 'src/fast_build_series.dart';
 export 'src/fast_spike_session.dart';
 export 'src/upstream_pin.dart';
+export 'src/watch_alpha_request.dart';
+export 'src/watch_alpha_result.dart';
+export 'src/watch_alpha_runner.dart';
+export 'src/fast_watch_alpha_session.dart';

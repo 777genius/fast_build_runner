@@ -16,6 +16,8 @@ class FastBuildRunnerCli {
     switch (command) {
       case 'spike-bootstrap':
         return _runSpikeBootstrap(rest);
+      case 'spike-watch':
+        return _runSpikeWatch(rest);
       case 'help':
       case '--help':
       case '-h':
@@ -68,6 +70,38 @@ class FastBuildRunnerCli {
     return result.exitCode;
   }
 
+  Future<int> _runSpikeWatch(List<String> args) async {
+    final parser =
+        ArgParser()
+          ..addOption(
+            'fixture',
+            defaultsTo: 'fixtures/json_serializable_fixture',
+            help: 'Path to the fixture template relative to the repo root.',
+          )
+          ..addOption(
+            'work-dir',
+            defaultsTo: '.dart_tool/fast_build_runner/watch_alpha',
+            help: 'Directory used for copied watch-alpha fixture runs.',
+          )
+          ..addFlag(
+            'keep-run-dir',
+            negatable: false,
+            help: 'Keep the copied fixture directory after execution.',
+          );
+
+    final parsed = parser.parse(args);
+    final repoRoot = _resolveRepoRoot();
+    final request = FastWatchAlphaRequest(
+      repoRoot: repoRoot.path,
+      fixtureTemplatePath: _resolveFromRoot(repoRoot, parsed['fixture'] as String),
+      workDirectoryPath: _resolveFromRoot(repoRoot, parsed['work-dir'] as String),
+      keepRunDirectory: parsed['keep-run-dir'] as bool,
+    );
+    final result = await FastWatchAlphaRunner().run(request);
+    stdout.writeln(const JsonEncoder.withIndent('  ').convert(result.toJson()));
+    return result.exitCode;
+  }
+
   Directory _resolveRepoRoot() {
     final scriptFile = File.fromUri(Platform.script);
     return scriptFile.parent.parent;
@@ -87,6 +121,9 @@ class FastBuildRunnerCli {
     stdout.writeln('Commands:');
     stdout.writeln(
       '  spike-bootstrap   Run the bootstrap seam proof against the bundled fixture.',
+    );
+    stdout.writeln(
+      '  spike-watch       Run a finite watch-alpha proof against the bundled fixture.',
     );
   }
 }

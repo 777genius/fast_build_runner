@@ -8,13 +8,16 @@ import 'package:build_runner/src/internal.dart';
 
 import 'bootstrap_spike_result.dart';
 import 'fast_spike_session.dart';
+import 'fast_watch_alpha_session.dart';
 import 'upstream_pin.dart';
+import 'watch_alpha_result.dart';
 
 class FastSpikeChildRunner {
   Future<void> run(List<String> args, BuilderFactories builderFactories) async {
     final message = await ChildProcess.receive();
     buildProcessState.deserializeAndSet(message);
     final argMap = _parseArgs(args);
+    final mode = argMap['mode'] ?? 'bootstrap-spike';
     final projectDirectory = argMap['project-dir'];
     final sourceFile = argMap['source-file'];
     final generatedFile = argMap['generated-file'];
@@ -49,35 +52,80 @@ class FastSpikeChildRunner {
         argMap['mutate-build-script-before-incremental'] == 'true';
 
     Directory.current = resolvedProjectDirectory;
-    FastBootstrapSpikeResult result;
+    Object result;
     try {
-      result = await FastSpikeSession(
-        builderFactories: builderFactories,
-        upstreamCommit: pinnedBuildRunnerCommit,
-      ).run(
-        packageName: resolvedPackageName,
-        sourceFileRelativePath: resolvedSourceFile,
-        generatedFileRelativePath: resolvedGeneratedFile,
-        generatedEntrypointPath: resolvedEntrypointScript,
-        runDirectory: resolvedProjectDirectory,
-        mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
-      );
+      switch (mode) {
+        case 'watch-alpha':
+          result = await FastWatchAlphaSession(
+            builderFactories: builderFactories,
+            upstreamCommit: pinnedBuildRunnerCommit,
+          ).run(
+            packageName: resolvedPackageName,
+            sourceFileRelativePath: resolvedSourceFile,
+            generatedFileRelativePath: resolvedGeneratedFile,
+            generatedEntrypointPath: resolvedEntrypointScript,
+            runDirectory: resolvedProjectDirectory,
+          );
+          break;
+        case 'bootstrap-spike':
+        default:
+          result = await FastSpikeSession(
+            builderFactories: builderFactories,
+            upstreamCommit: pinnedBuildRunnerCommit,
+          ).run(
+            packageName: resolvedPackageName,
+            sourceFileRelativePath: resolvedSourceFile,
+            generatedFileRelativePath: resolvedGeneratedFile,
+            generatedEntrypointPath: resolvedEntrypointScript,
+            runDirectory: resolvedProjectDirectory,
+            mutateBuildScriptBeforeIncremental:
+                mutateBuildScriptBeforeIncremental,
+          );
+          break;
+      }
     } catch (error) {
-      result = FastBootstrapSpikeResult(
-        status: 'failure',
-        upstreamCommit: pinnedBuildRunnerCommit,
-        generatedEntrypointPath: resolvedEntrypointScript,
-        runDirectory: resolvedProjectDirectory,
-        warnings: const [],
-        errors: ['$error'],
-        initialBuild: null,
-        incrementalBuild: null,
-      );
+      result =
+          mode == 'watch-alpha'
+              ? FastWatchAlphaResult(
+                status: 'failure',
+                upstreamCommit: pinnedBuildRunnerCommit,
+                generatedEntrypointPath: resolvedEntrypointScript,
+                runDirectory: resolvedProjectDirectory,
+                warnings: const [],
+                errors: ['$error'],
+                observedEvents: const [],
+                initialBuild: null,
+                incrementalBuild: null,
+              )
+              : FastBootstrapSpikeResult(
+                status: 'failure',
+                upstreamCommit: pinnedBuildRunnerCommit,
+                generatedEntrypointPath: resolvedEntrypointScript,
+                runDirectory: resolvedProjectDirectory,
+                warnings: const [],
+                errors: ['$error'],
+                initialBuild: null,
+                incrementalBuild: null,
+              );
     }
 
+    final exitCode = switch (result) {
+      FastWatchAlphaResult result => result.exitCode,
+      FastBootstrapSpikeResult result => result.exitCode,
+      _ => 1,
+    };
+    final payload = switch (result) {
+      FastWatchAlphaResult result => result.toJson(),
+      FastBootstrapSpikeResult result => result.toJson(),
+      _ => <String, Object?>{
+        'status': 'failure',
+        'errors': ['Unknown child runner result type.'],
+      },
+    };
+
     await ChildProcess.exitWithMessage(
-      exitCode: result.exitCode,
-      message: jsonEncode(result.toJson()),
+      exitCode: exitCode,
+      message: jsonEncode(payload),
     );
   }
 
