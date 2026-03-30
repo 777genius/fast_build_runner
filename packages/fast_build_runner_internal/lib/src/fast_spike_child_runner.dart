@@ -65,6 +65,8 @@ class FastSpikeChildRunner {
             generatedFileRelativePath: resolvedGeneratedFile,
             generatedEntrypointPath: resolvedEntrypointScript,
             runDirectory: resolvedProjectDirectory,
+            mutateBuildScriptBeforeIncremental:
+                mutateBuildScriptBeforeIncremental,
           );
           break;
         case 'bootstrap-spike':
@@ -94,6 +96,7 @@ class FastSpikeChildRunner {
                 warnings: const [],
                 errors: ['$error'],
                 observedEvents: const [],
+                mergedUpdates: const [],
                 initialBuild: null,
                 incrementalBuild: null,
               )

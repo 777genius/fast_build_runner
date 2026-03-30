@@ -30,6 +30,7 @@ class FastWatchAlphaRunner {
               '$pinnedBuildRunnerCommit but found $actualCommit.',
         ],
         observedEvents: const [],
+        mergedUpdates: const [],
         initialBuild: null,
         incrementalBuild: null,
       );
@@ -45,6 +46,7 @@ class FastWatchAlphaRunner {
         warnings: const [],
         errors: ['Fixture template does not exist: ${fixtureTemplateDir.path}'],
         observedEvents: const [],
+        mergedUpdates: const [],
         initialBuild: null,
         incrementalBuild: null,
       );
@@ -108,6 +110,8 @@ class FastWatchAlphaRunner {
             '--source-file=lib/person.dart',
             '--generated-file=lib/person.g.dart',
             '--entrypoint-script=$entrypointPath',
+            if (request.mutateBuildScriptBeforeIncremental)
+              '--mutate-build-script-before-incremental=true',
           ],
           message: parentMessage,
           jitVmArgs: const [],
@@ -131,6 +135,7 @@ class FastWatchAlphaRunner {
         warnings: const [],
         errors: ['$error'],
         observedEvents: const [],
+        mergedUpdates: const [],
         initialBuild: null,
         incrementalBuild: null,
       );

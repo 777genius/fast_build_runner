@@ -8,6 +8,7 @@ class FastWatchAlphaResult {
   final List<String> warnings;
   final List<String> errors;
   final List<String> observedEvents;
+  final List<String> mergedUpdates;
   final FastBuildStepResult? initialBuild;
   final FastBuildStepResult? incrementalBuild;
 
@@ -19,6 +20,7 @@ class FastWatchAlphaResult {
     required this.warnings,
     required this.errors,
     required this.observedEvents,
+    required this.mergedUpdates,
     required this.initialBuild,
     required this.incrementalBuild,
   });
@@ -34,6 +36,7 @@ class FastWatchAlphaResult {
     'warnings': warnings,
     'errors': errors,
     'observedEvents': observedEvents,
+    'mergedUpdates': mergedUpdates,
     'initialBuild': initialBuild?.toJson(),
     'incrementalBuild': incrementalBuild?.toJson(),
   };
@@ -47,6 +50,7 @@ class FastWatchAlphaResult {
         warnings: List<String>.from(json['warnings']! as List),
         errors: List<String>.from(json['errors']! as List),
         observedEvents: List<String>.from(json['observedEvents']! as List),
+        mergedUpdates: List<String>.from(json['mergedUpdates']! as List),
         initialBuild:
             json['initialBuild'] == null
                 ? null

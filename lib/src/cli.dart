@@ -87,6 +87,12 @@ class FastBuildRunnerCli {
             'keep-run-dir',
             negatable: false,
             help: 'Keep the copied fixture directory after execution.',
+          )
+          ..addFlag(
+            'mutate-build-script-before-incremental',
+            negatable: false,
+            help:
+                'For verification: mutate the generated build script during watch alpha and expect buildScriptChanged.',
           );
 
     final parsed = parser.parse(args);
@@ -96,6 +102,8 @@ class FastBuildRunnerCli {
       fixtureTemplatePath: _resolveFromRoot(repoRoot, parsed['fixture'] as String),
       workDirectoryPath: _resolveFromRoot(repoRoot, parsed['work-dir'] as String),
       keepRunDirectory: parsed['keep-run-dir'] as bool,
+      mutateBuildScriptBeforeIncremental:
+          parsed['mutate-build-script-before-incremental'] as bool,
     );
     final result = await FastWatchAlphaRunner().run(request);
     stdout.writeln(const JsonEncoder.withIndent('  ').convert(result.toJson()));
