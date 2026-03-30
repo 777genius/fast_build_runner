@@ -105,6 +105,44 @@ class FastWatchBenchmarkResult {
         'Experimental mode trusted the bootstrapped build script freshness on incremental runs.',
       if (extraFixtureModels > 0)
         'The copied benchmark fixture was expanded with $extraFixtureModels extra json_serializable model(s).',
+      if (_incrementalProfileMetric(
+                dart.result.incrementalBuild?.profile,
+                'untrackedBuildRunMilliseconds',
+              ) !=
+              null &&
+          _incrementalProfileMetric(
+                dart.result.incrementalBuild?.profile,
+                'trackedActionMilliseconds',
+              ) !=
+              null &&
+          _incrementalProfileMetric(
+                dart.result.incrementalBuild?.profile,
+                'untrackedBuildRunMilliseconds',
+              )! >
+              _incrementalProfileMetric(
+                dart.result.incrementalBuild?.profile,
+                'trackedActionMilliseconds',
+              )!)
+        'The dart incremental build still spends more time in untracked engine overhead than in tracked builder actions.',
+      if (_incrementalProfileMetric(
+                rust.result.incrementalBuild?.profile,
+                'untrackedBuildRunMilliseconds',
+              ) !=
+              null &&
+          _incrementalProfileMetric(
+                rust.result.incrementalBuild?.profile,
+                'trackedActionMilliseconds',
+              ) !=
+              null &&
+          _incrementalProfileMetric(
+                rust.result.incrementalBuild?.profile,
+                'untrackedBuildRunMilliseconds',
+              )! >
+              _incrementalProfileMetric(
+                rust.result.incrementalBuild?.profile,
+                'trackedActionMilliseconds',
+              )!)
+        'The rust incremental build still spends more time in untracked engine overhead than in tracked builder actions.',
     ];
     final errors = <String>[
       if (!dart.result.isSuccess)
@@ -199,6 +237,38 @@ class FastWatchBenchmarkResult {
     return dartTotal / rustTotal;
   }
 
+  int? get dartIncrementalTrackedActionMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'trackedActionMilliseconds',
+      );
+
+  int? get rustIncrementalTrackedActionMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'trackedActionMilliseconds',
+      );
+
+  int? get dartIncrementalUntrackedBuildMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'untrackedBuildRunMilliseconds',
+      );
+
+  int? get rustIncrementalUntrackedBuildMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'untrackedBuildRunMilliseconds',
+      );
+
+  static int? _incrementalProfileMetric(
+    Map<String, Object?>? profile,
+    String key,
+  ) {
+    final value = profile?[key];
+    return value is int ? value : null;
+  }
+
   int? get dartTotalWatchCollectionMilliseconds {
     final timings = dart.result.watchCollectionMilliseconds;
     if (timings.isEmpty) {
@@ -238,6 +308,14 @@ class FastWatchBenchmarkResult {
     'rustTotalIncrementalBuildSpeedupVsDart':
         rustTotalIncrementalBuildSpeedupVsDart,
     'rustWatchCollectionSpeedupVsDart': rustWatchCollectionSpeedupVsDart,
+    'dartIncrementalTrackedActionMilliseconds':
+        dartIncrementalTrackedActionMilliseconds,
+    'rustIncrementalTrackedActionMilliseconds':
+        rustIncrementalTrackedActionMilliseconds,
+    'dartIncrementalUntrackedBuildMilliseconds':
+        dartIncrementalUntrackedBuildMilliseconds,
+    'rustIncrementalUntrackedBuildMilliseconds':
+        rustIncrementalUntrackedBuildMilliseconds,
     'dartTotalWatchCollectionMilliseconds':
         dartTotalWatchCollectionMilliseconds,
     'rustTotalWatchCollectionMilliseconds':
@@ -291,6 +369,14 @@ class FastWatchBenchmarkResult {
         'rustIncrementalBuildSpeedupVsDart: ${rustIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustTotalIncrementalBuildSpeedupVsDart != null)
         'rustTotalIncrementalBuildSpeedupVsDart: ${rustTotalIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x',
+      if (dartIncrementalTrackedActionMilliseconds != null)
+        'dartIncrementalTrackedActionMilliseconds: $dartIncrementalTrackedActionMilliseconds ms',
+      if (rustIncrementalTrackedActionMilliseconds != null)
+        'rustIncrementalTrackedActionMilliseconds: $rustIncrementalTrackedActionMilliseconds ms',
+      if (dartIncrementalUntrackedBuildMilliseconds != null)
+        'dartIncrementalUntrackedBuildMilliseconds: $dartIncrementalUntrackedBuildMilliseconds ms',
+      if (rustIncrementalUntrackedBuildMilliseconds != null)
+        'rustIncrementalUntrackedBuildMilliseconds: $rustIncrementalUntrackedBuildMilliseconds ms',
       if (rustWatchCollectionSpeedupVsDart != null)
         'rustWatchCollectionSpeedupVsDart: ${rustWatchCollectionSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustSpeedupVsDart != null)

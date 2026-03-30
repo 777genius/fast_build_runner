@@ -12,6 +12,7 @@ import 'package:watcher/watcher.dart';
 
 import 'bootstrap_spike_result.dart';
 import 'fast_build_plan.dart';
+import 'fast_build_run_profile.dart';
 import 'fast_build_series.dart';
 import 'fast_watch_scheduler.dart';
 import 'rust_daemon_client.dart';
@@ -77,7 +78,7 @@ class FastWatchAlphaSession {
         isReleaseBuild: false,
         logPerformanceDir: null,
         outputSymlinksOnly: false,
-        trackPerformance: false,
+        trackPerformance: true,
         verbose: false,
         verboseDurations: false,
         workspace: false,
@@ -111,8 +112,8 @@ class FastWatchAlphaSession {
     final buildSeries = FastBuildSeries(buildPlan);
     final compileDependencyPaths = buildPlan.bootstrapper
         .compileDependencyPathsWithinRoot(Directory.current.path);
-    final buildResults = <FastWatchScheduledBuild<BuildResult>>[];
-    final scheduler = FastWatchScheduler<BuildResult>(
+    final buildResults = <FastWatchScheduledBuild<FastBuildRunOutcome>>[];
+    final scheduler = FastWatchScheduler<FastBuildRunOutcome>(
       onBuild: (updates, {required skipBuildScriptFreshnessCheck}) =>
           buildSeries.run(
         updates,
@@ -126,7 +127,7 @@ class FastWatchAlphaSession {
     _PersistentDartWatchCollector? dartWatchCollector;
     String? rustWatchId;
     int? rustDaemonStartupMilliseconds;
-    StreamSubscription<FastWatchScheduledBuild<BuildResult>>?
+    StreamSubscription<FastWatchScheduledBuild<FastBuildRunOutcome>>?
     resultSubscription;
 
     try {
@@ -139,7 +140,8 @@ class FastWatchAlphaSession {
       final initialResult = _stepResult(
         name: 'initial',
         elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
-        buildResult: initialBuild,
+        buildResult: initialBuild.result,
+        buildProfile: initialBuild.profile,
         generatedFileRelativePath: generatedFileRelativePath,
       );
 
@@ -267,7 +269,8 @@ class FastWatchAlphaSession {
               _stepResult(
                 name: 'incremental-${cycleIndex + 1}',
                 elapsedMilliseconds: scheduledBuild.elapsedMilliseconds,
-                buildResult: scheduledBuild.result,
+                buildResult: scheduledBuild.result.result,
+                buildProfile: scheduledBuild.result.profile,
                 generatedFileRelativePath: generatedFileRelativePath,
               ),
             );
@@ -287,7 +290,8 @@ class FastWatchAlphaSession {
             _stepResult(
               name: 'incremental-${buildIndex + 1}',
               elapsedMilliseconds: scheduledBuild.elapsedMilliseconds,
-              buildResult: scheduledBuild.result,
+              buildResult: scheduledBuild.result.result,
+              buildProfile: scheduledBuild.result.profile,
               generatedFileRelativePath: generatedFileRelativePath,
             ),
           );
@@ -305,7 +309,7 @@ class FastWatchAlphaSession {
           : mergedUpdateBatches.last;
 
       final success =
-          initialBuild.status == BuildStatus.success &&
+          initialBuild.result.status == BuildStatus.success &&
           lastIncremental != null &&
           (mutateBuildScriptBeforeIncremental
               ? incrementalCycles == 1 &&
@@ -842,6 +846,7 @@ class FastWatchAlphaSession {
     required String name,
     required int elapsedMilliseconds,
     required BuildResult buildResult,
+    FastBuildRunProfile? buildProfile,
     required String generatedFileRelativePath,
   }) {
     final generatedFile = File(
@@ -861,6 +866,7 @@ class FastWatchAlphaSession {
       generatedFileHasMutation: RegExp(
         r'(nickname|country|isVerified|extraField\d+)',
       ).hasMatch(generatedContent),
+      profile: buildProfile?.toJson(),
     );
   }
 

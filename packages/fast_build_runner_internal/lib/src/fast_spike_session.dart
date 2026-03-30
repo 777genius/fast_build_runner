@@ -9,6 +9,7 @@ import 'package:watcher/watcher.dart';
 
 import 'bootstrap_spike_result.dart';
 import 'fast_build_plan.dart';
+import 'fast_build_run_profile.dart';
 import 'fast_build_series.dart';
 import 'package:build_runner/src/internal.dart';
 
@@ -44,7 +45,7 @@ class FastSpikeSession {
         isReleaseBuild: false,
         logPerformanceDir: null,
         outputSymlinksOnly: false,
-        trackPerformance: false,
+        trackPerformance: true,
         verbose: false,
         verboseDurations: false,
         workspace: false,
@@ -80,7 +81,8 @@ class FastSpikeSession {
       final initialResult = _stepResult(
         name: 'initial',
         elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
-        buildResult: initialBuild,
+        buildResult: initialBuild.result,
+        buildProfile: initialBuild.profile,
         generatedFileRelativePath: generatedFileRelativePath,
       );
 
@@ -97,7 +99,8 @@ class FastSpikeSession {
       final incrementalResult = _stepResult(
         name: 'incremental',
         elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
-        buildResult: incrementalBuild,
+        buildResult: incrementalBuild.result,
+        buildProfile: incrementalBuild.profile,
         generatedFileRelativePath: generatedFileRelativePath,
       );
 
@@ -106,11 +109,11 @@ class FastSpikeSession {
           incrementalResult.failureType == 'buildScriptChanged';
       final sawExpectedMutation =
           !mutateBuildScriptBeforeIncremental &&
-          incrementalBuild.status == BuildStatus.success &&
+          incrementalBuild.result.status == BuildStatus.success &&
           incrementalResult.generatedFileExists &&
           incrementalResult.generatedFileHasMutation;
       final success =
-          initialBuild.status == BuildStatus.success &&
+          initialBuild.result.status == BuildStatus.success &&
           (sawExpectedMutation || sawExpectedBuildScriptChange);
 
       return FastBootstrapSpikeResult(
@@ -145,6 +148,7 @@ class FastSpikeSession {
     required String name,
     required int elapsedMilliseconds,
     required BuildResult buildResult,
+    FastBuildRunProfile? buildProfile,
     required String generatedFileRelativePath,
   }) {
     final generatedFile = File(
@@ -162,6 +166,7 @@ class FastSpikeSession {
       errors: buildResult.errors.toList(),
       generatedFileExists: generatedFile.existsSync(),
       generatedFileHasMutation: generatedContent.contains('nickname'),
+      profile: buildProfile?.toJson(),
     );
   }
 

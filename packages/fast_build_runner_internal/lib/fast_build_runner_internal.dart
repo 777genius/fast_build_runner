@@ -5,6 +5,7 @@ export 'src/fast_bootstrap_generator.dart';
 export 'src/fast_bootstrapper.dart';
 export 'src/fast_spike_child_runner.dart';
 export 'src/fast_build_plan.dart';
+export 'src/fast_build_run_profile.dart';
 export 'src/fast_build_series.dart';
 export 'src/fast_spike_session.dart';
 export 'src/upstream_pin.dart';

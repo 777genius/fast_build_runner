@@ -19,6 +19,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:watcher/watcher.dart';
 
 import 'deferred_asset_graph_reader_writer.dart';
+import 'fast_build_run_profile.dart';
 
 /// Narrow copy of upstream BuildSeries for the bootstrap spike.
 ///
@@ -52,24 +53,10 @@ class FastBuildSeries {
 
   factory FastBuildSeries(BuildPlan buildPlan) {
     final assetGraph = buildPlan.takeAssetGraph();
-    final baseReaderWriter = buildPlan.readerWriter.copyWith(
-      generatedAssetHider:
-          buildPlan.testingOverrides.flattenOutput
-              ? const NoopGeneratedAssetHider()
-              : assetGraph,
-      cache:
-          buildPlan.buildOptions.enableLowResourcesMode
-              ? const PassthroughFilesystemCache()
-              : InMemoryFilesystemCache(),
-    );
-    final readerWriter = DeferredAssetGraphReaderWriter(
-      delegate: baseReaderWriter,
-      assetGraphId: AssetId(buildPlan.buildPackages.outputRoot, assetGraphPath),
-    );
     return FastBuildSeries._(
       buildPlan: buildPlan,
       assetGraph: assetGraph,
-      readerWriter: readerWriter,
+      readerWriter: _createReaderWriter(buildPlan, assetGraph),
       updatesFromLoad: buildPlan.updates,
     );
   }
@@ -84,7 +71,7 @@ class FastBuildSeries {
     ).collectChanges(_assetGraph);
   }
 
-  Future<BuildResult> run(
+  Future<FastBuildRunOutcome> run(
     Map<AssetId, ChangeType> updates, {
     required bool recentlyBootstrapped,
     bool skipBuildScriptFreshnessCheck = false,
@@ -100,42 +87,66 @@ class FastBuildSeries {
       );
     }
 
+    var freshnessCheckMilliseconds = 0;
+    var configReloadMilliseconds = 0;
+
     if (recentlyBootstrapped) {
       if (updates.isNotEmpty) {
         throw StateError('`recentlyBootstrapped` but updates not empty.');
       }
     } else if (!skipBuildScriptFreshnessCheck) {
+      final freshnessStopwatch = Stopwatch()..start();
       final kernelFreshness = await _buildPlan.bootstrapper
           .checkCompileFreshness(digestsAreFresh: false);
+      freshnessStopwatch.stop();
+      freshnessCheckMilliseconds = freshnessStopwatch.elapsedMilliseconds;
       if (!kernelFreshness.outputIsFresh) {
         final result = BuildResult.buildScriptChanged();
         _buildResultsController.add(result);
         await close();
-        return result;
+        return FastBuildRunOutcome(
+          result: result,
+          profile: FastBuildRunProfile(
+            freshnessCheckMilliseconds: freshnessCheckMilliseconds,
+            configReloadMilliseconds: 0,
+            buildRunMilliseconds: 0,
+            trackedActionMilliseconds: 0,
+            trackedPhaseMilliseconds: 0,
+            trackedBuilderActionCount: 0,
+            trackedBuildPhaseCount: 0,
+          ),
+        );
       }
     }
 
     if (updates.keys.any(_isBuildConfiguration)) {
+      final configReloadStopwatch = Stopwatch()..start();
       await _flushDeferredWrites();
       _buildPlan = await _buildPlan.reload();
       await _buildPlan.deleteFilesAndFolders();
       if (_buildPlan.restartIsNeeded) {
+        configReloadStopwatch.stop();
+        configReloadMilliseconds = configReloadStopwatch.elapsedMilliseconds;
         final result = BuildResult.buildScriptChanged();
         _buildResultsController.add(result);
         await close();
-        return result;
+        return FastBuildRunOutcome(
+          result: result,
+          profile: FastBuildRunProfile(
+            freshnessCheckMilliseconds: freshnessCheckMilliseconds,
+            configReloadMilliseconds: configReloadMilliseconds,
+            buildRunMilliseconds: 0,
+            trackedActionMilliseconds: 0,
+            trackedPhaseMilliseconds: 0,
+            trackedBuilderActionCount: 0,
+            trackedBuildPhaseCount: 0,
+          ),
+        );
       }
       _assetGraph = _buildPlan.takeAssetGraph();
-      _readerWriter = _buildPlan.readerWriter.copyWith(
-        generatedAssetHider:
-            _buildPlan.testingOverrides.flattenOutput
-                ? const NoopGeneratedAssetHider()
-                : _assetGraph,
-        cache:
-            _buildPlan.buildOptions.enableLowResourcesMode
-                ? const PassthroughFilesystemCache()
-                : InMemoryFilesystemCache(),
-      );
+      _readerWriter = _createReaderWriter(_buildPlan, _assetGraph);
+      configReloadStopwatch.stop();
+      configReloadMilliseconds = configReloadStopwatch.elapsedMilliseconds;
     }
 
     if (firstBuild) {
@@ -158,10 +169,20 @@ class FastBuildSeries {
       firstBuild = false;
     }
 
+    final buildRunStopwatch = Stopwatch()..start();
     _currentBuildResult = build.run(updates);
     final result = await _currentBuildResult!;
+    buildRunStopwatch.stop();
     _buildResultsController.add(result);
-    return result;
+    return FastBuildRunOutcome(
+      result: result,
+      profile: FastBuildRunProfile.fromBuildResult(
+        buildResult: result,
+        freshnessCheckMilliseconds: freshnessCheckMilliseconds,
+        configReloadMilliseconds: configReloadMilliseconds,
+        buildRunMilliseconds: buildRunStopwatch.elapsedMilliseconds,
+      ),
+    );
   }
 
   Future<void> close() async {
@@ -184,4 +205,24 @@ class FastBuildSeries {
 
   bool _isBuildConfiguration(AssetId id) =>
       id.path == 'build.yaml' || id.path.startsWith(entrypointDirectoryPath);
+
+  static ReaderWriter _createReaderWriter(
+    BuildPlan buildPlan,
+    AssetGraph assetGraph,
+  ) {
+    final baseReaderWriter = buildPlan.readerWriter.copyWith(
+      generatedAssetHider:
+          buildPlan.testingOverrides.flattenOutput
+              ? const NoopGeneratedAssetHider()
+              : assetGraph,
+      cache:
+          buildPlan.buildOptions.enableLowResourcesMode
+              ? const PassthroughFilesystemCache()
+              : InMemoryFilesystemCache(),
+    );
+    return DeferredAssetGraphReaderWriter(
+      delegate: baseReaderWriter,
+      assetGraphId: AssetId(buildPlan.buildPackages.outputRoot, assetGraphPath),
+    );
+  }
 }

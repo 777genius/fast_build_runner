@@ -7,6 +7,7 @@ class FastBuildStepResult {
   final List<String> errors;
   final bool generatedFileExists;
   final bool generatedFileHasMutation;
+  final Map<String, Object?>? profile;
 
   const FastBuildStepResult({
     required this.name,
@@ -17,6 +18,7 @@ class FastBuildStepResult {
     required this.errors,
     required this.generatedFileExists,
     required this.generatedFileHasMutation,
+    this.profile,
   });
 
   Map<String, Object?> toJson() => {
@@ -28,6 +30,7 @@ class FastBuildStepResult {
     'errors': errors,
     'generatedFileExists': generatedFileExists,
     'generatedFileHasMutation': generatedFileHasMutation,
+    'profile': profile,
   };
 
   static FastBuildStepResult fromJson(Map<String, Object?> json) =>
@@ -40,6 +43,9 @@ class FastBuildStepResult {
         errors: List<String>.from(json['errors']! as List),
         generatedFileExists: json['generatedFileExists']! as bool,
         generatedFileHasMutation: json['generatedFileHasMutation']! as bool,
+        profile: json['profile'] == null
+            ? null
+            : Map<String, Object?>.from(json['profile']! as Map),
       );
 }
 
