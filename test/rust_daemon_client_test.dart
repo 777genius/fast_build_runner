@@ -15,7 +15,7 @@ void main() {
     expect(response, isA<RustDaemonPongResponse>());
     final pong = response as RustDaemonPongResponse;
     expect(pong.id, 'ping-test');
-    expect(pong.protocolVersion, 1);
+    expect(pong.protocolVersion, 2);
     expect(pong.daemon, 'fast_build_runner_daemon');
   }, timeout: const Timeout(Duration(minutes: 2)));
 
@@ -100,6 +100,66 @@ void main() {
     expect(response, isA<RustDaemonWatchBatchResponse>());
     final batch = response as RustDaemonWatchBatchResponse;
     expect(batch.id, 'session-watch');
+    expect(
+      batch.events.any(
+        (event) => event.path.endsWith('sample.txt') && event.kind == 'modify',
+      ),
+      isTrue,
+    );
+  }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('rust daemon session supports explicit startWatch and finishWatch', () async {
+    final session = await RustDaemonSession.start(daemonDirectory: daemonDirectory);
+    addTearDown(session.close);
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'fbr-rust-daemon-handshake-test-',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final file = File('${tempDir.path}/sample.txt')..writeAsStringSync('seed\n');
+
+    final startResponse = await session.startWatch(
+      id: 'handshake-start',
+      watchId: 'handshake-watch',
+      path: tempDir.path,
+      trackedPaths: [file.path],
+      warmupMs: 250,
+    );
+
+    if (startResponse case RustDaemonErrorResponse(:final message)) {
+      fail('Rust daemon startWatch returned an error payload: $message');
+    }
+    expect(startResponse, isA<RustDaemonWatchReadyResponse>());
+    final ready = startResponse as RustDaemonWatchReadyResponse;
+    expect(ready.id, 'handshake-start');
+    expect(ready.watchId, 'handshake-watch');
+    expect(ready.status, 'ready');
+
+    file.writeAsStringSync(
+      'changed\n',
+      mode: FileMode.append,
+      flush: true,
+    );
+
+    final finishResponse = await session.finishWatch(
+      id: 'handshake-finish',
+      watchId: 'handshake-watch',
+      debounceMs: 250,
+      timeoutMs: 7000,
+    );
+
+    if (finishResponse case RustDaemonErrorResponse(:final message)) {
+      fail('Rust daemon finishWatch returned an error payload: $message');
+    }
+    expect(finishResponse, isA<RustDaemonWatchBatchResponse>());
+    final batch = finishResponse as RustDaemonWatchBatchResponse;
+    expect(batch.id, 'handshake-finish');
+    expect(batch.watchId, 'handshake-watch');
     expect(
       batch.events.any(
         (event) => event.path.endsWith('sample.txt') && event.kind == 'modify',

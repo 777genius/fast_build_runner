@@ -1,6 +1,6 @@
 use std::io::{self, BufRead, Write};
 
-use fast_build_runner_daemon::{handle_request, DaemonRequest, DaemonResponse};
+use fast_build_runner_daemon::{DaemonRequest, DaemonResponse, DaemonServer};
 
 fn main() {
     if let Err(error) = run() {
@@ -22,6 +22,7 @@ fn main() {
 fn run() -> anyhow::Result<()> {
     let stdin = io::stdin();
     let mut stdout = io::stdout().lock();
+    let mut server = DaemonServer::new();
 
     for line in stdin.lock().lines() {
         let line = line?;
@@ -30,7 +31,7 @@ fn run() -> anyhow::Result<()> {
         }
 
         let response = match serde_json::from_str::<DaemonRequest>(&line) {
-            Ok(request) => handle_request(request),
+            Ok(request) => server.handle_request(request),
             Err(error) => DaemonResponse::Error {
                 id: None,
                 message: format!("Failed to parse daemon request: {error}"),

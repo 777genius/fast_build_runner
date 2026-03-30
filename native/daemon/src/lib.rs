@@ -24,6 +24,23 @@ pub enum DaemonRequest {
         #[serde(default)]
         timeout_ms: Option<u64>,
     },
+    StartWatch {
+        id: String,
+        watch_id: String,
+        path: String,
+        #[serde(default)]
+        tracked_paths: Option<Vec<String>>,
+        #[serde(default)]
+        warmup_ms: Option<u64>,
+    },
+    FinishWatch {
+        id: String,
+        watch_id: String,
+        #[serde(default)]
+        debounce_ms: Option<u64>,
+        #[serde(default)]
+        timeout_ms: Option<u64>,
+    },
 }
 
 #[derive(Debug, Serialize)]
@@ -36,10 +53,18 @@ pub enum DaemonResponse {
     },
     WatchBatch {
         id: String,
+        #[serde(skip_serializing_if = "Option::is_none")]
+        watch_id: Option<String>,
         status: &'static str,
         root: String,
         events: Vec<WatchEventPayload>,
         warnings: Vec<String>,
+    },
+    WatchReady {
+        id: String,
+        watch_id: String,
+        status: &'static str,
+        root: String,
     },
     Error {
         id: Option<String>,
@@ -53,32 +78,108 @@ pub struct WatchEventPayload {
     pub kind: &'static str,
 }
 
-pub fn handle_request(request: DaemonRequest) -> DaemonResponse {
-    match request {
-        DaemonRequest::Ping { id } => DaemonResponse::Pong {
-            id,
-            protocol_version: 1,
-            daemon: "fast_build_runner_daemon",
-        },
-        DaemonRequest::WatchOnce {
-            id,
-            path,
-            tracked_paths,
-            debounce_ms,
-            timeout_ms,
-        } => match watch_once(&path, tracked_paths, debounce_ms, timeout_ms) {
-            Ok(events) => DaemonResponse::WatchBatch {
+pub struct DaemonServer {
+    active_watches: BTreeMap<String, ActiveWatch>,
+}
+
+impl DaemonServer {
+    pub fn new() -> Self {
+        Self {
+            active_watches: BTreeMap::new(),
+        }
+    }
+
+    pub fn handle_request(&mut self, request: DaemonRequest) -> DaemonResponse {
+        match request {
+            DaemonRequest::Ping { id } => DaemonResponse::Pong {
                 id,
-                status: "ok",
-                root: path,
-                events,
-                warnings: vec![],
+                protocol_version: 2,
+                daemon: "fast_build_runner_daemon",
             },
-            Err(error) => DaemonResponse::Error {
-                id: Some(id),
-                message: format!("{error:#}"),
+            DaemonRequest::WatchOnce {
+                id,
+                path,
+                tracked_paths,
+                debounce_ms,
+                timeout_ms,
+            } => match watch_once(&path, tracked_paths, debounce_ms, timeout_ms) {
+                Ok(events) => DaemonResponse::WatchBatch {
+                    id,
+                    watch_id: None,
+                    status: "ok",
+                    root: path,
+                    events,
+                    warnings: vec![],
+                },
+                Err(error) => DaemonResponse::Error {
+                    id: Some(id),
+                    message: format!("{error:#}"),
+                },
             },
-        },
+            DaemonRequest::StartWatch {
+                id,
+                watch_id,
+                path,
+                tracked_paths,
+                warmup_ms,
+            } => match self.start_watch(&watch_id, &path, tracked_paths, warmup_ms) {
+                Ok(active_watch) => {
+                    let root = active_watch.root.clone();
+                    self.active_watches.insert(watch_id.clone(), active_watch);
+                    DaemonResponse::WatchReady {
+                        id,
+                        watch_id,
+                        status: "ready",
+                        root,
+                    }
+                }
+                Err(error) => DaemonResponse::Error {
+                    id: Some(id),
+                    message: format!("{error:#}"),
+                },
+            },
+            DaemonRequest::FinishWatch {
+                id,
+                watch_id,
+                debounce_ms,
+                timeout_ms,
+            } => {
+                let Some(active_watch) = self.active_watches.remove(&watch_id) else {
+                    return DaemonResponse::Error {
+                        id: Some(id),
+                        message: format!("Unknown active watch id: {watch_id}"),
+                    };
+                };
+                let root = active_watch.root.clone();
+                match active_watch.finish(debounce_ms, timeout_ms) {
+                    Ok(events) => DaemonResponse::WatchBatch {
+                        id,
+                        watch_id: Some(watch_id),
+                        status: "ok",
+                        root,
+                        events,
+                        warnings: vec![],
+                    },
+                    Err(error) => DaemonResponse::Error {
+                        id: Some(id),
+                        message: format!("{error:#}"),
+                    },
+                }
+            }
+        }
+    }
+
+    fn start_watch(
+        &self,
+        watch_id: &str,
+        root: &str,
+        tracked_paths: Option<Vec<String>>,
+        warmup_ms: Option<u64>,
+    ) -> Result<ActiveWatch> {
+        if self.active_watches.contains_key(watch_id) {
+            return Err(anyhow!("Active watch id already exists: {watch_id}"));
+        }
+        ActiveWatch::start(root, tracked_paths, warmup_ms)
     }
 }
 
@@ -174,6 +275,120 @@ pub fn watch_once(
     Ok(merge_watch_events(collected))
 }
 
+struct ActiveWatch {
+    root: String,
+    canonical_root: PathBuf,
+    tracked_path_filter: Option<BTreeSet<String>>,
+    existing_paths: BTreeMap<String, bool>,
+    receiver: mpsc::Receiver<notify::Result<Event>>,
+    _watcher: notify::RecommendedWatcher,
+}
+
+impl ActiveWatch {
+    fn start(
+        root: &str,
+        tracked_paths: Option<Vec<String>>,
+        warmup_ms: Option<u64>,
+    ) -> Result<Self> {
+        let root_path = PathBuf::from(root);
+        if !root_path.exists() {
+            return Err(anyhow!(
+                "Watch root does not exist: {}",
+                root_path.display()
+            ));
+        }
+        let canonical_root = root_path.canonicalize().with_context(|| {
+            format!("Failed to canonicalize watch root {}", root_path.display())
+        })?;
+        let tracked_paths = normalize_tracked_paths(&canonical_root, tracked_paths)?;
+        let tracked_path_filter = tracked_paths
+            .as_ref()
+            .map(|entries| entries.keys().cloned().collect::<BTreeSet<_>>());
+        let existing_paths =
+            tracked_paths.unwrap_or_else(|| collect_existing_paths(&canonical_root));
+        let (tx, rx) = mpsc::channel();
+
+        let mut watcher = recommended_watcher(move |result| {
+            let _ = tx.send(result);
+        })
+        .context("Failed to create filesystem watcher")?;
+
+        watcher
+            .watch(&canonical_root, RecursiveMode::Recursive)
+            .with_context(|| format!("Failed to watch {}", canonical_root.display()))?;
+
+        std::thread::sleep(Duration::from_millis(warmup_ms.unwrap_or(250)));
+
+        Ok(Self {
+            root: root.to_string(),
+            canonical_root,
+            tracked_path_filter,
+            existing_paths,
+            receiver: rx,
+            _watcher: watcher,
+        })
+    }
+
+    fn finish(
+        self,
+        debounce_ms: Option<u64>,
+        timeout_ms: Option<u64>,
+    ) -> Result<Vec<WatchEventPayload>> {
+        let debounce = Duration::from_millis(debounce_ms.unwrap_or(350));
+        let timeout = Duration::from_millis(timeout_ms.unwrap_or(15_000));
+        let start = Instant::now();
+        let mut first_event_seen = false;
+        let mut last_event_at: Option<Instant> = None;
+        let mut collected = Vec::new();
+
+        loop {
+            let remaining = timeout
+                .checked_sub(start.elapsed())
+                .ok_or_else(|| anyhow!("Timed out waiting for watcher events"))?;
+
+            let wait_for = if first_event_seen {
+                let idle_remaining = debounce
+                    .checked_sub(last_event_at.unwrap_or_else(Instant::now).elapsed())
+                    .unwrap_or(Duration::ZERO);
+                idle_remaining.min(remaining)
+            } else {
+                remaining
+            };
+
+            match self.receiver.recv_timeout(wait_for) {
+                Ok(Ok(event)) => {
+                    first_event_seen = true;
+                    last_event_at = Some(Instant::now());
+                    collected.extend(normalize_event_batch(
+                        &self.canonical_root,
+                        self.tracked_path_filter.as_ref(),
+                        &self.existing_paths,
+                        &event,
+                    ));
+                }
+                Ok(Err(error)) => return Err(anyhow!("Watcher reported an error: {error}")),
+                Err(mpsc::RecvTimeoutError::Timeout) => {
+                    if first_event_seen {
+                        break;
+                    }
+                }
+                Err(mpsc::RecvTimeoutError::Disconnected) => {
+                    return Err(anyhow!("Watcher channel disconnected unexpectedly"));
+                }
+            }
+        }
+
+        if collected.is_empty() {
+            return Err(anyhow!(
+                "Timed out waiting for watcher events under {}",
+                self.canonical_root.display()
+            ));
+        }
+
+        Ok(merge_watch_events(collected))
+    }
+}
+
 fn normalize_event_batch(
     canonical_root: &Path,
     tracked_path_filter: Option<&BTreeSet<String>>,
@@ -249,13 +464,21 @@ fn normalize_tracked_paths(
         } else {
             canonical_root.join(tracked_path_buf)
         };
-        if !absolute.starts_with(canonical_root) {
+        let normalized_absolute = if absolute.exists() {
+            absolute.canonicalize().unwrap_or_else(|_| absolute.clone())
+        } else {
+            absolute.clone()
+        };
+        if !normalized_absolute.starts_with(canonical_root) {
             return Err(anyhow!(
                 "Tracked path is outside of the watch root: {}",
-                absolute.display()
+                normalized_absolute.display()
             ));
         }
-        normalized.insert(absolute.display().to_string(), absolute.exists());
+        normalized.insert(
+            normalized_absolute.display().to_string(),
+            normalized_absolute.exists(),
+        );
     }
     Ok(Some(normalized))
 }

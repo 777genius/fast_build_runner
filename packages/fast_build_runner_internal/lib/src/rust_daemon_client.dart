@@ -28,6 +28,38 @@ class RustDaemonClient {
     });
   }
 
+  Future<RustDaemonResponse> startWatch({
+    required String id,
+    required String watchId,
+    required String path,
+    List<String>? trackedPaths,
+    int warmupMs = 250,
+  }) {
+    return _send({
+      'command': 'start_watch',
+      'id': id,
+      'watch_id': watchId,
+      'path': path,
+      'tracked_paths': trackedPaths,
+      'warmup_ms': warmupMs,
+    });
+  }
+
+  Future<RustDaemonResponse> finishWatch({
+    required String id,
+    required String watchId,
+    int debounceMs = 350,
+    int timeoutMs = 15000,
+  }) {
+    return _send({
+      'command': 'finish_watch',
+      'id': id,
+      'watch_id': watchId,
+      'debounce_ms': debounceMs,
+      'timeout_ms': timeoutMs,
+    });
+  }
+
   Future<RustDaemonResponse> _send(Map<String, Object?> request) async {
     final session = await RustDaemonSession.start(
       daemonDirectory: daemonDirectory,
@@ -98,7 +130,7 @@ class RustDaemonSession {
         '${Platform.pathSeparator}debug'
         '${Platform.pathSeparator}$executableName';
     final executable = File(executablePath);
-    if (executable.existsSync()) {
+    if (executable.existsSync() && !_requiresRebuild(daemonDirectory, executable)) {
       return executable.path;
     }
 
@@ -122,6 +154,32 @@ class RustDaemonSession {
     return executable.path;
   }
 
+  static bool _requiresRebuild(String daemonDirectory, File executable) {
+    if (!executable.existsSync()) {
+      return true;
+    }
+    final executableModified = executable.statSync().modified;
+    final srcDirectory = Directory('$daemonDirectory${Platform.pathSeparator}src');
+    if (srcDirectory.existsSync()) {
+      for (final entity in srcDirectory.listSync(recursive: true)) {
+        if (entity is File &&
+            entity.statSync().modified.isAfter(executableModified)) {
+          return true;
+        }
+      }
+    }
+    final manifestFiles = [
+      File('$daemonDirectory${Platform.pathSeparator}Cargo.toml'),
+      File('$daemonDirectory${Platform.pathSeparator}Cargo.lock'),
+    ];
+    for (final file in manifestFiles) {
+      if (file.existsSync() && file.statSync().modified.isAfter(executableModified)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
   Future<RustDaemonResponse> ping({String id = 'ping'}) {
     return send({'command': 'ping', 'id': id});
   }
@@ -138,6 +196,38 @@ class RustDaemonSession {
       'id': id,
       'path': path,
       'tracked_paths': trackedPaths,
+      'debounce_ms': debounceMs,
+      'timeout_ms': timeoutMs,
+    });
+  }
+
+  Future<RustDaemonResponse> startWatch({
+    required String id,
+    required String watchId,
+    required String path,
+    List<String>? trackedPaths,
+    int warmupMs = 250,
+  }) {
+    return send({
+      'command': 'start_watch',
+      'id': id,
+      'watch_id': watchId,
+      'path': path,
+      'tracked_paths': trackedPaths,
+      'warmup_ms': warmupMs,
+    });
+  }
+
+  Future<RustDaemonResponse> finishWatch({
+    required String id,
+    required String watchId,
+    int debounceMs = 350,
+    int timeoutMs = 15000,
+  }) {
+    return send({
+      'command': 'finish_watch',
+      'id': id,
+      'watch_id': watchId,
       'debounce_ms': debounceMs,
       'timeout_ms': timeoutMs,
     });
@@ -223,12 +313,20 @@ sealed class RustDaemonResponse {
       case 'watch_batch':
         return RustDaemonWatchBatchResponse(
           id: json['id']! as String,
+          watchId: json['watch_id'] as String?,
           status: json['status']! as String,
           root: json['root']! as String,
           warnings: List<String>.from(json['warnings']! as List),
           events: List<Map<String, Object?>>.from(
             json['events']! as List,
           ).map(RustDaemonWatchEvent.fromJson).toList(),
+        );
+      case 'watch_ready':
+        return RustDaemonWatchReadyResponse(
+          id: json['id']! as String,
+          watchId: json['watch_id']! as String,
+          status: json['status']! as String,
+          root: json['root']! as String,
         );
       case 'error':
         return RustDaemonErrorResponse(
@@ -255,6 +353,7 @@ class RustDaemonPongResponse extends RustDaemonResponse {
 
 class RustDaemonWatchBatchResponse extends RustDaemonResponse {
   final String id;
+  final String? watchId;
   final String status;
   final String root;
   final List<RustDaemonWatchEvent> events;
@@ -262,11 +361,26 @@ class RustDaemonWatchBatchResponse extends RustDaemonResponse {
 
   const RustDaemonWatchBatchResponse({
     required this.id,
+    required this.watchId,
     required this.status,
     required this.root,
     required this.events,
     required this.warnings,
   }) : super('watch_batch');
+}
+
+class RustDaemonWatchReadyResponse extends RustDaemonResponse {
+  final String id;
+  final String watchId;
+  final String status;
+  final String root;
+
+  const RustDaemonWatchReadyResponse({
+    required this.id,
+    required this.watchId,
+    required this.status,
+    required this.root,
+  }) : super('watch_ready');
 }
 
 class RustDaemonErrorResponse extends RustDaemonResponse {

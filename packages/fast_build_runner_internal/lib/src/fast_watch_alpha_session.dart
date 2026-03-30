@@ -388,17 +388,25 @@ class FastWatchAlphaSession {
       );
     }
 
-    final watchFuture = rustClient.watchOnce(
-      id: 'watch-alpha-watch-${cycleIndex + 1}',
+    final watchId = 'watch-alpha-${cycleIndex + 1}';
+    final readyResponse = await rustClient.startWatch(
+      id: 'watch-alpha-start-${cycleIndex + 1}',
+      watchId: watchId,
       path: Directory.current.path,
       trackedPaths: _trackedWatchPaths(
         sourceFileRelativePath: sourceFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
       ),
-      debounceMs: 350,
-      timeoutMs: 15000,
+      warmupMs: 250,
     );
-    await Future<void>.delayed(const Duration(milliseconds: 350));
+    if (readyResponse is RustDaemonErrorResponse) {
+      throw StateError('Rust daemon startWatch failed: ${readyResponse.message}');
+    }
+    if (readyResponse is! RustDaemonWatchReadyResponse) {
+      throw StateError(
+        'Rust daemon returned an unexpected startWatch response type: ${readyResponse.runtimeType}',
+      );
+    }
     await _performWatchMutation(
       sourceFileRelativePath: sourceFileRelativePath,
       generatedEntrypointPath: generatedEntrypointPath,
@@ -406,7 +414,12 @@ class FastWatchAlphaSession {
       cycleIndex: cycleIndex,
     );
 
-    final response = await watchFuture;
+    final response = await rustClient.finishWatch(
+      id: 'watch-alpha-finish-${cycleIndex + 1}',
+      watchId: watchId,
+      debounceMs: 350,
+      timeoutMs: 15000,
+    );
     if (response is RustDaemonErrorResponse) {
       throw StateError('Rust daemon watchOnce failed: ${response.message}');
     }
