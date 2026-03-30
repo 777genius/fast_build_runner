@@ -145,9 +145,15 @@ void main() {
     expect(summary, contains('dart: 1200 ms'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
     expect(summary, contains('rustIncrementalBuild: 80 ms'));
+    expect(summary, contains('rustInitialBuildSpeedupVsDart: 1.06x'));
+    expect(summary, contains('rustIncrementalBuildSpeedupVsDart: 1.50x'));
     expect(summary, contains('rustSpeedupVsDart: 1.50x'));
     expect(markdown, contains('# fast_build_runner watch benchmark'));
     expect(markdown, contains('- rust incremental build: `80 ms`'));
+    expect(
+      markdown,
+      contains('- rust incremental build speedup vs dart: `1.50x`'),
+    );
     expect(markdown, contains('- rust speedup vs dart: `1.50x`'));
   });
 }

@@ -48,6 +48,25 @@ class FastWatchBenchmarkResult {
 
   bool get isSuccess => status == 'success';
   int get exitCode => isSuccess ? 0 : 1;
+  double? get rustInitialBuildSpeedupVsDart {
+    final dartInitial = dart.result.initialBuild?.elapsedMilliseconds;
+    final rustInitial = rust.result.initialBuild?.elapsedMilliseconds;
+    if (dartInitial == null || rustInitial == null || rustInitial == 0) {
+      return null;
+    }
+    return dartInitial / rustInitial;
+  }
+
+  double? get rustIncrementalBuildSpeedupVsDart {
+    final dartIncremental = dart.result.incrementalBuild?.elapsedMilliseconds;
+    final rustIncremental = rust.result.incrementalBuild?.elapsedMilliseconds;
+    if (dartIncremental == null ||
+        rustIncremental == null ||
+        rustIncremental == 0) {
+      return null;
+    }
+    return dartIncremental / rustIncremental;
+  }
 
   Map<String, Object?> toJson() => {
     'status': status,
@@ -55,6 +74,8 @@ class FastWatchBenchmarkResult {
     'dart': dart.toJson(),
     'rust': rust.toJson(),
     'rustSpeedupVsDart': rustSpeedupVsDart,
+    'rustInitialBuildSpeedupVsDart': rustInitialBuildSpeedupVsDart,
+    'rustIncrementalBuildSpeedupVsDart': rustIncrementalBuildSpeedupVsDart,
     'warnings': warnings,
     'errors': errors,
   };
@@ -74,6 +95,10 @@ class FastWatchBenchmarkResult {
         'dartIncrementalBuild: ${dart.result.incrementalBuild!.elapsedMilliseconds} ms',
       if (rust.result.incrementalBuild != null)
         'rustIncrementalBuild: ${rust.result.incrementalBuild!.elapsedMilliseconds} ms',
+      if (rustInitialBuildSpeedupVsDart != null)
+        'rustInitialBuildSpeedupVsDart: ${rustInitialBuildSpeedupVsDart!.toStringAsFixed(2)}x',
+      if (rustIncrementalBuildSpeedupVsDart != null)
+        'rustIncrementalBuildSpeedupVsDart: ${rustIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustSpeedupVsDart != null)
         'rustSpeedupVsDart: ${rustSpeedupVsDart!.toStringAsFixed(2)}x',
       'dartResult: ${dart.result.status}',
@@ -121,6 +146,16 @@ class FastWatchBenchmarkResult {
     if (rustSpeedupVsDart != null) {
       buffer.writeln(
         '- rust speedup vs dart: `${rustSpeedupVsDart!.toStringAsFixed(2)}x`',
+      );
+    }
+    if (rustInitialBuildSpeedupVsDart != null) {
+      buffer.writeln(
+        '- rust initial build speedup vs dart: `${rustInitialBuildSpeedupVsDart!.toStringAsFixed(2)}x`',
+      );
+    }
+    if (rustIncrementalBuildSpeedupVsDart != null) {
+      buffer.writeln(
+        '- rust incremental build speedup vs dart: `${rustIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x`',
       );
     }
     buffer
