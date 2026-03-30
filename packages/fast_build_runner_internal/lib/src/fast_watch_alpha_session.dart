@@ -18,6 +18,10 @@ import 'watch_alpha_result.dart';
 import 'watch_batch_resolver.dart';
 import 'watch_update_merger.dart';
 
+const _dartWatchDebounceMs = 350;
+const _rustWatchDebounceMs = 200;
+const _watchTimeout = Duration(seconds: 15);
+
 class FastWatchAlphaSession {
   final BuilderFactories builderFactories;
   final String upstreamCommit;
@@ -426,7 +430,7 @@ class FastWatchAlphaSession {
     final response = await rustClient.finishWatch(
       id: 'watch-alpha-finish-${cycleIndex + 1}',
       watchId: rustWatchId,
-      debounceMs: 350,
+      debounceMs: _rustWatchDebounceMs,
       timeoutMs: 15000,
       keepAlive: keepAlive,
     );
@@ -766,7 +770,7 @@ class _PersistentDartWatchCollector {
     await mutate();
     try {
       return await _batchCompleter!.future.timeout(
-        const Duration(seconds: 15),
+        _watchTimeout,
         onTimeout: () => throw TimeoutException(
           'Timed out waiting for a persistent dart watcher batch for $sourceFileRelativePath.',
         ),
@@ -791,7 +795,7 @@ class _PersistentDartWatchCollector {
 
     _observedEvents.add('${event.type}:${event.path}');
     _quietTimer?.cancel();
-    _quietTimer = Timer(const Duration(milliseconds: 350), () {
+    _quietTimer = Timer(const Duration(milliseconds: _dartWatchDebounceMs), () {
       if (batchCompleter.isCompleted) {
         return;
       }
