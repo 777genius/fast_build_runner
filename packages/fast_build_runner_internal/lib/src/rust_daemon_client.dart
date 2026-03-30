@@ -27,47 +27,139 @@ class RustDaemonClient {
   }
 
   Future<RustDaemonResponse> _send(Map<String, Object?> request) async {
+    final session = await RustDaemonSession.start(
+      daemonDirectory: daemonDirectory,
+    );
+    try {
+      return await session.send(request);
+    } finally {
+      await session.close();
+    }
+  }
+}
+
+class RustDaemonSession {
+  final String daemonDirectory;
+  final Process _process;
+  final StreamIterator<String> _stdoutIterator;
+  final StringBuffer _stderrBuffer;
+  final StreamSubscription<String> _stderrSubscription;
+
+  bool _closed = false;
+  Future<void> _requestQueue = Future.value();
+
+  RustDaemonSession._({
+    required this.daemonDirectory,
+    required Process process,
+    required StreamIterator<String> stdoutIterator,
+    required StringBuffer stderrBuffer,
+    required StreamSubscription<String> stderrSubscription,
+  }) : _process = process,
+       _stdoutIterator = stdoutIterator,
+       _stderrBuffer = stderrBuffer,
+       _stderrSubscription = stderrSubscription;
+
+  static Future<RustDaemonSession> start({
+    required String daemonDirectory,
+  }) async {
     final process = await Process.start(
       'cargo',
       const ['run', '--quiet'],
       workingDirectory: daemonDirectory,
     );
-
-    final stdoutLines = process.stdout
-        .transform(utf8.decoder)
-        .transform(const LineSplitter());
+    final stdoutIterator = StreamIterator<String>(
+      process.stdout.transform(utf8.decoder).transform(const LineSplitter()),
+    );
     final stderrBuffer = StringBuffer();
     final stderrSubscription = process.stderr
         .transform(utf8.decoder)
         .listen(stderrBuffer.write);
 
-    process.stdin.writeln(jsonEncode(request));
-    await process.stdin.close();
+    return RustDaemonSession._(
+      daemonDirectory: daemonDirectory,
+      process: process,
+      stdoutIterator: stdoutIterator,
+      stderrBuffer: stderrBuffer,
+      stderrSubscription: stderrSubscription,
+    );
+  }
 
-    final line = await stdoutLines.first.timeout(
+  Future<RustDaemonResponse> ping({String id = 'ping'}) {
+    return send({'command': 'ping', 'id': id});
+  }
+
+  Future<RustDaemonResponse> watchOnce({
+    required String id,
+    required String path,
+    int debounceMs = 350,
+    int timeoutMs = 15000,
+  }) {
+    return send({
+      'command': 'watch_once',
+      'id': id,
+      'path': path,
+      'debounce_ms': debounceMs,
+      'timeout_ms': timeoutMs,
+    });
+  }
+
+  Future<RustDaemonResponse> send(Map<String, Object?> request) async {
+    if (_closed) {
+      throw StateError('RustDaemonSession is already closed.');
+    }
+
+    final responseFuture = _requestQueue.then((_) => _sendInternal(request));
+    _requestQueue = responseFuture.then<void>((_) {}, onError: (_, _) {});
+    return responseFuture;
+  }
+
+  Future<void> close() async {
+    if (_closed) {
+      return;
+    }
+    _closed = true;
+    await _requestQueue.catchError((_) {});
+    await _process.stdin.close();
+    await _stdoutIterator.cancel();
+    final exitCode = await _process.exitCode.timeout(
       const Duration(seconds: 30),
       onTimeout: () => throw TimeoutException(
-        'Timed out waiting for a Rust daemon response.',
+        'Timed out waiting for the Rust daemon session to exit.',
       ),
     );
-
-    final exitCode = await process.exitCode.timeout(
-      const Duration(seconds: 30),
-      onTimeout: () => throw TimeoutException(
-        'Timed out waiting for the Rust daemon process to exit.',
-      ),
-    );
-    await stderrSubscription.cancel();
-
-    final decoded = jsonDecode(line) as Map<String, Object?>;
-    final response = RustDaemonResponse.fromJson(decoded);
-    if (exitCode != 0 && response is! RustDaemonErrorResponse) {
+    await _stderrSubscription.cancel();
+    if (exitCode != 0) {
       throw StateError(
-        'Rust daemon exited with code $exitCode without returning an error payload.\n'
-        'stderr:\n$stderrBuffer',
+        'Rust daemon session exited with code $exitCode.\n'
+        'stderr:\n$_stderrBuffer',
       );
     }
-    return response;
+  }
+
+  Future<RustDaemonResponse> _sendInternal(Map<String, Object?> request) async {
+    _process.stdin.writeln(jsonEncode(request));
+    await _process.stdin.flush();
+
+    final hasLine = await _stdoutIterator.moveNext().timeout(
+      const Duration(seconds: 30),
+      onTimeout: () => throw TimeoutException(
+        'Timed out waiting for a Rust daemon session response.',
+      ),
+    );
+    if (!hasLine) {
+      final exitCode = await _process.exitCode.timeout(
+        const Duration(seconds: 5),
+        onTimeout: () => -999,
+      );
+      throw StateError(
+        'Rust daemon session closed before returning a response.\n'
+        'exitCode: $exitCode\n'
+        'stderr:\n$_stderrBuffer',
+      );
+    }
+
+    final decoded = jsonDecode(_stdoutIterator.current) as Map<String, Object?>;
+    return RustDaemonResponse.fromJson(decoded);
   }
 }
 

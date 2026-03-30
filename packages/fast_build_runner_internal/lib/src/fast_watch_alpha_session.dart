@@ -90,6 +90,7 @@ class FastWatchAlphaSession {
           buildSeries.run(updates, recentlyBootstrapped: false),
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
+    RustDaemonSession? rustClient;
     StreamSubscription<BuildResult>? resultSubscription;
 
     try {
@@ -104,8 +105,8 @@ class FastWatchAlphaSession {
       );
 
       resultSubscription = scheduler.results.listen(buildResults.add);
-      final rustClient = sourceEngine == 'rust'
-          ? await _prepareRustClient(rustDaemonDirectory)
+      rustClient = sourceEngine == 'rust'
+          ? await _prepareRustSession(rustDaemonDirectory)
           : null;
       final observedEventBatches = <List<String>>[];
       final mergedUpdateBatches = <List<String>>[];
@@ -217,13 +218,14 @@ class FastWatchAlphaSession {
         incrementalBuilds: incrementalResults,
       );
     } finally {
+      await rustClient?.close();
       await resultSubscription?.cancel();
       await scheduler.close();
       await buildSeries.close();
     }
   }
 
-  Future<RustDaemonClient> _prepareRustClient(
+  Future<RustDaemonSession> _prepareRustSession(
     String? rustDaemonDirectory,
   ) async {
     if (rustDaemonDirectory == null || rustDaemonDirectory.isEmpty) {
@@ -231,9 +233,12 @@ class FastWatchAlphaSession {
         'Rust watch alpha requested, but no rust daemon directory was provided.',
       );
     }
-    final client = RustDaemonClient(daemonDirectory: rustDaemonDirectory);
+    final client = await RustDaemonSession.start(
+      daemonDirectory: rustDaemonDirectory,
+    );
     final ping = await client.ping(id: 'watch-alpha-ping');
     if (ping is RustDaemonErrorResponse) {
+      await client.close();
       throw StateError('Rust daemon ping failed: ${ping.message}');
     }
     return client;
@@ -241,7 +246,7 @@ class FastWatchAlphaSession {
 
   Future<_CollectedWatchBatch> _collectWatchBatch({
     required String sourceEngine,
-    required RustDaemonClient? rustClient,
+    required RustDaemonSession? rustClient,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
@@ -330,7 +335,7 @@ class FastWatchAlphaSession {
   }
 
   Future<_CollectedWatchBatch> _collectRustWatchBatch({
-    required RustDaemonClient? rustClient,
+    required RustDaemonSession? rustClient,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,

@@ -60,4 +60,51 @@ void main() {
       isTrue,
     );
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('rust daemon session handles multiple requests in one process', () async {
+    final session = await RustDaemonSession.start(daemonDirectory: daemonDirectory);
+    addTearDown(session.close);
+
+    final ping = await session.ping(id: 'session-ping');
+    expect(ping, isA<RustDaemonPongResponse>());
+    expect((ping as RustDaemonPongResponse).id, 'session-ping');
+
+    final tempDir = await Directory.systemTemp.createTemp(
+      'fbr-rust-daemon-session-test-',
+    );
+    addTearDown(() async {
+      if (tempDir.existsSync()) {
+        await tempDir.delete(recursive: true);
+      }
+    });
+
+    final file = File('${tempDir.path}/sample.txt')..writeAsStringSync('seed\n');
+    unawaited(Future<void>.delayed(const Duration(seconds: 3), () async {
+      file.writeAsStringSync(
+        'changed\n',
+        mode: FileMode.append,
+        flush: true,
+      );
+    }));
+
+    final response = await session.watchOnce(
+      id: 'session-watch',
+      path: tempDir.path,
+      debounceMs: 250,
+      timeoutMs: 7000,
+    );
+
+    if (response case RustDaemonErrorResponse(:final message)) {
+      fail('Rust daemon session returned an error payload: $message');
+    }
+    expect(response, isA<RustDaemonWatchBatchResponse>());
+    final batch = response as RustDaemonWatchBatchResponse;
+    expect(batch.id, 'session-watch');
+    expect(
+      batch.events.any(
+        (event) => event.path.endsWith('sample.txt') && event.kind == 'modify',
+      ),
+      isTrue,
+    );
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }
