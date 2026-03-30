@@ -37,6 +37,7 @@ class FastWatchAlphaSession {
     required String generatedEntrypointPath,
     required String runDirectory,
     required bool mutateBuildScriptBeforeIncremental,
+    required bool simulateDroppedSourceUpdateOnIncremental,
   }) async {
     final buildPlan = await FastBuildPlan.load(
       builderFactories: builderFactories,
@@ -132,7 +133,12 @@ class FastWatchAlphaSession {
         lastWatchBatch = watchBatch;
 
         final resolution = await resolveWatchBatch(
-          watcherUpdates: watchBatch.mergedUpdates,
+          watcherUpdates: _maybeDropExpectedSourceUpdate(
+            updates: watchBatch.mergedUpdates,
+            expectedSourceAssetId: sourceAssetId,
+            simulateDrop:
+                simulateDroppedSourceUpdateOnIncremental && cycleIndex == 0,
+          ),
           watcherBatchWasEmpty: watchBatch.isEmpty,
           expectedSourceAssetId: sourceAssetId,
           collectSourceUpdates: buildSeries.collectSourceUpdates,
@@ -208,6 +214,8 @@ class FastWatchAlphaSession {
             'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
           if (mutateBuildScriptBeforeIncremental)
             'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
+          if (simulateDroppedSourceUpdateOnIncremental)
+            'The first incremental cycle intentionally dropped the source update before resolution to verify filesystem resync recovery.',
           ...resolutionWarnings,
         ],
         errors: [
@@ -482,6 +490,19 @@ class FastWatchAlphaSession {
       batches.add({AssetId(packageName, relativePath): changeType});
     }
     return mergeAssetChangeMaps(batches);
+  }
+
+  Map<AssetId, ChangeType> _maybeDropExpectedSourceUpdate({
+    required Map<AssetId, ChangeType> updates,
+    required AssetId expectedSourceAssetId,
+    required bool simulateDrop,
+  }) {
+    if (!simulateDrop || !updates.containsKey(expectedSourceAssetId)) {
+      return updates;
+    }
+    final mutated = Map<AssetId, ChangeType>.from(updates);
+    mutated.remove(expectedSourceAssetId);
+    return mutated;
   }
 
   FastBuildStepResult _stepResult({

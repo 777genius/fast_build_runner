@@ -145,4 +145,42 @@ void main() {
     },
     timeout: const Timeout(Duration(minutes: 3)),
   );
+
+  test(
+    'watch alpha resyncs from the filesystem when the source update is dropped',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_alpha_resync_recovery',
+          keepRunDirectory: false,
+          simulateDroppedSourceUpdateOnIncremental: true,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.incrementalBuilds, hasLength(1));
+      expect(result.incrementalBuild!.status, 'success');
+      expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
+      expect(
+        result.warnings,
+        contains(
+          'The first incremental cycle intentionally dropped the source update before resolution to verify filesystem resync recovery.',
+        ),
+      );
+      expect(
+        result.warnings.any(
+          (warning) =>
+              warning.contains('incremental-1:') &&
+              warning.contains('Replaced watcher updates with filesystem resync updates.'),
+        ),
+        isTrue,
+      );
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
 }

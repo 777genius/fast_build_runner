@@ -145,6 +145,8 @@ class FastWatchAlphaRunner {
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
+            if (request.simulateDroppedSourceUpdateOnIncremental)
+              '--simulate-dropped-source-update-on-incremental=true',
           ],
           message: parentMessage,
           jitVmArgs: const [],

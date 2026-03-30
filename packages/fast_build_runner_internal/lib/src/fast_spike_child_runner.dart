@@ -54,6 +54,8 @@ class FastSpikeChildRunner {
     final resolvedEntrypointScript = entrypointScript;
     final mutateBuildScriptBeforeIncremental =
         argMap['mutate-build-script-before-incremental'] == 'true';
+    final simulateDroppedSourceUpdateOnIncremental =
+        argMap['simulate-dropped-source-update-on-incremental'] == 'true';
 
     Directory.current = resolvedProjectDirectory;
     Object result;
@@ -75,6 +77,8 @@ class FastSpikeChildRunner {
                 runDirectory: resolvedProjectDirectory,
                 mutateBuildScriptBeforeIncremental:
                     mutateBuildScriptBeforeIncremental,
+                simulateDroppedSourceUpdateOnIncremental:
+                    simulateDroppedSourceUpdateOnIncremental,
               );
           break;
         case 'bootstrap-spike':
