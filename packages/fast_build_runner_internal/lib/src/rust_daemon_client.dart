@@ -39,6 +39,8 @@ class RustDaemonClient {
 }
 
 class RustDaemonSession {
+  static const _daemonExecutableBaseName = 'fast_build_runner_daemon';
+
   final String daemonDirectory;
   final Process _process;
   final StreamIterator<String> _stdoutIterator;
@@ -62,10 +64,10 @@ class RustDaemonSession {
   static Future<RustDaemonSession> start({
     required String daemonDirectory,
   }) async {
+    final executablePath = await _resolveExecutablePath(daemonDirectory);
     final process = await Process.start(
-      'cargo',
-      const ['run', '--quiet'],
-      workingDirectory: daemonDirectory,
+      executablePath,
+      const [],
     );
     final stdoutIterator = StreamIterator<String>(
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()),
@@ -82,6 +84,40 @@ class RustDaemonSession {
       stderrBuffer: stderrBuffer,
       stderrSubscription: stderrSubscription,
     );
+  }
+
+  static Future<String> _resolveExecutablePath(String daemonDirectory) async {
+    final executableName =
+        Platform.isWindows
+            ? '$_daemonExecutableBaseName.exe'
+            : _daemonExecutableBaseName;
+    final executablePath =
+        '$daemonDirectory${Platform.pathSeparator}target'
+        '${Platform.pathSeparator}debug'
+        '${Platform.pathSeparator}$executableName';
+    final executable = File(executablePath);
+    if (executable.existsSync()) {
+      return executable.path;
+    }
+
+    final buildResult = await Process.run(
+      'cargo',
+      const ['build', '--quiet'],
+      workingDirectory: daemonDirectory,
+    );
+    if (buildResult.exitCode != 0) {
+      throw StateError(
+        'Failed to build Rust daemon binary in $daemonDirectory\n'
+        'stdout:\n${buildResult.stdout}\n'
+        'stderr:\n${buildResult.stderr}',
+      );
+    }
+    if (!executable.existsSync()) {
+      throw StateError(
+        'Rust daemon build completed but executable was not found at ${executable.path}.',
+      );
+    }
+    return executable.path;
   }
 
   Future<RustDaemonResponse> ping({String id = 'ping'}) {
