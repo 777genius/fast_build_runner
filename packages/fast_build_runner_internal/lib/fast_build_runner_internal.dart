@@ -12,3 +12,5 @@ export 'src/watch_alpha_request.dart';
 export 'src/watch_alpha_result.dart';
 export 'src/watch_alpha_runner.dart';
 export 'src/fast_watch_alpha_session.dart';
+export 'src/fast_watch_scheduler.dart';
+export 'src/watch_update_merger.dart';

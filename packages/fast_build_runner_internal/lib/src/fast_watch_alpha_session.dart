@@ -12,7 +12,9 @@ import 'package:watcher/watcher.dart';
 import 'bootstrap_spike_result.dart';
 import 'fast_build_plan.dart';
 import 'fast_build_series.dart';
+import 'fast_watch_scheduler.dart';
 import 'watch_alpha_result.dart';
+import 'watch_update_merger.dart';
 
 class FastWatchAlphaSession {
   final BuilderFactories builderFactories;
@@ -74,7 +76,13 @@ class FastWatchAlphaSession {
     }
 
     final buildSeries = FastBuildSeries(buildPlan);
+    final buildResults = <BuildResult>[];
+    final scheduler = FastWatchScheduler<BuildResult>(
+      onBuild:
+          (updates) => buildSeries.run(updates, recentlyBootstrapped: false),
+    );
     StreamSubscription<WatchEvent>? subscription;
+    StreamSubscription<BuildResult>? resultSubscription;
     Timer? quietTimer;
     try {
       final initialBuild = await buildSeries.run({}, recentlyBootstrapped: true);
@@ -87,6 +95,7 @@ class FastWatchAlphaSession {
       final observedEvents = <String>[];
       final pendingEvents = <WatchEvent>[];
       final batchCompleter = Completer<List<WatchEvent>>();
+      resultSubscription = scheduler.results.listen(buildResults.add);
       final watcher = DirectoryWatcher(Directory.current.path);
       subscription = watcher.events.listen((event) {
         observedEvents.add('${event.type}:${event.path}');
@@ -121,10 +130,13 @@ class FastWatchAlphaSession {
       final mergedUpdates = _collectChanges(packageName, watchBatch);
       final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
 
-      final incrementalBuild = await buildSeries.run(
-        mergedUpdates,
-        recentlyBootstrapped: false,
-      );
+      await scheduler.enqueue(mergedUpdates);
+      final incrementalBuild =
+          buildResults.isNotEmpty
+              ? buildResults.last
+              : throw StateError(
+                'Watch alpha scheduler became idle without producing a build result.',
+              );
       final incrementalResult = _stepResult(
         name: 'incremental',
         buildResult: incrementalBuild,
@@ -178,6 +190,8 @@ class FastWatchAlphaSession {
     } finally {
       quietTimer?.cancel();
       await subscription?.cancel();
+      await resultSubscription?.cancel();
+      await scheduler.close();
       await buildSeries.close();
     }
   }
@@ -208,45 +222,15 @@ class FastWatchAlphaSession {
     String packageName,
     List<WatchEvent> changes,
   ) {
-    final changeMap = <AssetId, ChangeType>{};
+    final batches = <Map<AssetId, ChangeType>>[];
     for (final change in changes) {
       final relativePath = _relativeEventPath(change);
       if (relativePath == null) {
         continue;
       }
-      final id = AssetId(packageName, relativePath);
-      final originalChangeType = changeMap[id];
-      if (originalChangeType != null) {
-        switch (originalChangeType) {
-          case ChangeType.ADD:
-            if (change.type == ChangeType.REMOVE) {
-              changeMap.remove(id);
-            }
-            break;
-          case ChangeType.REMOVE:
-            if (change.type == ChangeType.ADD) {
-              changeMap[id] = ChangeType.MODIFY;
-            } else if (change.type == ChangeType.MODIFY) {
-              throw StateError(
-                'Internal watch alpha error: got REMOVE followed by MODIFY for $id.',
-              );
-            }
-            break;
-          case ChangeType.MODIFY:
-            if (change.type == ChangeType.REMOVE) {
-              changeMap[id] = change.type;
-            } else if (change.type == ChangeType.ADD) {
-              throw StateError(
-                'Internal watch alpha error: got MODIFY followed by ADD for $id.',
-              );
-            }
-            break;
-        }
-      } else {
-        changeMap[id] = change.type;
-      }
+      batches.add({AssetId(packageName, relativePath): change.type});
     }
-    return changeMap;
+    return mergeAssetChangeMaps(batches);
   }
 
   FastBuildStepResult _stepResult({
