@@ -1,0 +1,323 @@
+use std::collections::BTreeMap;
+use std::fs;
+use std::path::{Path, PathBuf};
+use std::sync::mpsc;
+use std::time::{Duration, Instant};
+
+use anyhow::{anyhow, Context, Result};
+use notify::{recommended_watcher, Event, EventKind, RecursiveMode, Watcher};
+use serde::{Deserialize, Serialize};
+
+#[derive(Debug, Deserialize)]
+#[serde(tag = "command", rename_all = "snake_case")]
+pub enum DaemonRequest {
+    Ping {
+        id: String,
+    },
+    WatchOnce {
+        id: String,
+        path: String,
+        #[serde(default)]
+        debounce_ms: Option<u64>,
+        #[serde(default)]
+        timeout_ms: Option<u64>,
+    },
+}
+
+#[derive(Debug, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum DaemonResponse {
+    Pong {
+        id: String,
+        protocol_version: u32,
+        daemon: &'static str,
+    },
+    WatchBatch {
+        id: String,
+        status: &'static str,
+        root: String,
+        events: Vec<WatchEventPayload>,
+        warnings: Vec<String>,
+    },
+    Error {
+        id: Option<String>,
+        message: String,
+    },
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct WatchEventPayload {
+    pub path: String,
+    pub kind: &'static str,
+}
+
+pub fn handle_request(request: DaemonRequest) -> DaemonResponse {
+    match request {
+        DaemonRequest::Ping { id } => DaemonResponse::Pong {
+            id,
+            protocol_version: 1,
+            daemon: "fast_build_runner_daemon",
+        },
+        DaemonRequest::WatchOnce {
+            id,
+            path,
+            debounce_ms,
+            timeout_ms,
+        } => match watch_once(&path, debounce_ms, timeout_ms) {
+            Ok(events) => DaemonResponse::WatchBatch {
+                id,
+                status: "ok",
+                root: path,
+                events,
+                warnings: vec![],
+            },
+            Err(error) => DaemonResponse::Error {
+                id: Some(id),
+                message: format!("{error:#}"),
+            },
+        },
+    }
+}
+
+pub fn watch_once(
+    root: &str,
+    debounce_ms: Option<u64>,
+    timeout_ms: Option<u64>,
+) -> Result<Vec<WatchEventPayload>> {
+    let root_path = PathBuf::from(root);
+    if !root_path.exists() {
+        return Err(anyhow!(
+            "Watch root does not exist: {}",
+            root_path.display()
+        ));
+    }
+
+    let debounce = Duration::from_millis(debounce_ms.unwrap_or(350));
+    let timeout = Duration::from_millis(timeout_ms.unwrap_or(15_000));
+    let warmup = Duration::from_millis(250);
+    let existing_paths = collect_existing_paths(&root_path)?;
+    let (tx, rx) = mpsc::channel();
+
+    let mut watcher = recommended_watcher(move |result| {
+        let _ = tx.send(result);
+    })
+    .context("Failed to create filesystem watcher")?;
+
+    watcher
+        .watch(&root_path, RecursiveMode::Recursive)
+        .with_context(|| format!("Failed to watch {}", root_path.display()))?;
+
+    let start = Instant::now();
+    let warmup_deadline = start + warmup;
+    let mut first_event_seen = false;
+    let mut last_event_at: Option<Instant> = None;
+    let mut collected = Vec::new();
+
+    loop {
+        let remaining = timeout
+            .checked_sub(start.elapsed())
+            .ok_or_else(|| anyhow!("Timed out waiting for watcher events"))?;
+
+        let wait_for = if first_event_seen {
+            let idle_remaining = debounce
+                .checked_sub(last_event_at.unwrap_or_else(Instant::now).elapsed())
+                .unwrap_or(Duration::ZERO);
+            idle_remaining.min(remaining)
+        } else {
+            remaining
+        };
+
+        match rx.recv_timeout(wait_for) {
+            Ok(Ok(event)) => {
+                if !first_event_seen && Instant::now() < warmup_deadline {
+                    continue;
+                }
+                first_event_seen = true;
+                last_event_at = Some(Instant::now());
+                collected.extend(normalize_event_batch(&root_path, &existing_paths, &event));
+            }
+            Ok(Err(error)) => return Err(anyhow!("Watcher reported an error: {error}")),
+            Err(mpsc::RecvTimeoutError::Timeout) => {
+                if first_event_seen {
+                    break;
+                }
+            }
+            Err(mpsc::RecvTimeoutError::Disconnected) => {
+                return Err(anyhow!("Watcher channel disconnected unexpectedly"));
+            }
+        }
+    }
+
+    if collected.is_empty() {
+        return Err(anyhow!(
+            "Timed out waiting for watcher events under {}",
+            root_path.display()
+        ));
+    }
+
+    Ok(merge_watch_events(collected))
+}
+
+fn normalize_event_batch(
+    root: &Path,
+    existing_paths: &BTreeMap<String, bool>,
+    event: &Event,
+) -> Vec<WatchEventPayload> {
+    event
+        .paths
+        .iter()
+        .filter_map(|path| normalize_watch_path(root, path).ok())
+        .filter(|path| path != &root.display().to_string())
+        .map(|path| WatchEventPayload {
+            kind: normalize_kind(classify_event_kind(&event.kind), &path, existing_paths),
+            path,
+        })
+        .collect()
+}
+
+fn normalize_watch_path(root: &Path, path: &Path) -> Result<String> {
+    let absolute = if path.is_absolute() {
+        path.to_path_buf()
+    } else {
+        root.join(path)
+    };
+    let canonical_root = root
+        .canonicalize()
+        .with_context(|| format!("Failed to canonicalize watch root {}", root.display()))?;
+    if absolute.starts_with(&canonical_root) {
+        Ok(absolute.display().to_string())
+    } else {
+        Err(anyhow!(
+            "Watcher produced a path outside of the root: {}",
+            absolute.display()
+        ))
+    }
+}
+
+fn classify_event_kind(kind: &EventKind) -> &'static str {
+    match kind {
+        EventKind::Create(_) => "add",
+        EventKind::Modify(_) => "modify",
+        EventKind::Remove(_) => "remove",
+        _ => "other",
+    }
+}
+
+fn normalize_kind(
+    raw_kind: &'static str,
+    path: &str,
+    existing_paths: &BTreeMap<String, bool>,
+) -> &'static str {
+    if raw_kind == "add" && existing_paths.contains_key(path) {
+        "modify"
+    } else {
+        raw_kind
+    }
+}
+
+fn collect_existing_paths(root: &Path) -> Result<BTreeMap<String, bool>> {
+    let mut paths = BTreeMap::new();
+    collect_existing_paths_recursive(root, &mut paths)?;
+    Ok(paths)
+}
+
+fn collect_existing_paths_recursive(root: &Path, paths: &mut BTreeMap<String, bool>) -> Result<()> {
+    if !root.exists() {
+        return Ok(());
+    }
+    paths.insert(root.display().to_string(), root.is_dir());
+    if root.is_dir() {
+        for entry in fs::read_dir(root)
+            .with_context(|| format!("Failed to read directory {}", root.display()))?
+        {
+            let entry =
+                entry.with_context(|| format!("Failed to read entry in {}", root.display()))?;
+            collect_existing_paths_recursive(&entry.path(), paths)?;
+        }
+    }
+    Ok(())
+}
+
+pub fn merge_watch_events(events: Vec<WatchEventPayload>) -> Vec<WatchEventPayload> {
+    let mut merged = BTreeMap::<String, &'static str>::new();
+    for event in events {
+        let next_kind = event.kind;
+        match merged.get(event.path.as_str()).copied() {
+            Some("add") if next_kind == "remove" => {
+                merged.remove(&event.path);
+            }
+            Some("remove") if next_kind == "add" => {
+                merged.insert(event.path, "modify");
+            }
+            Some("modify") if next_kind == "remove" => {
+                merged.insert(event.path, "remove");
+            }
+            Some(_) => {}
+            None => {
+                merged.insert(event.path, next_kind);
+            }
+        }
+    }
+
+    merged
+        .into_iter()
+        .map(|(path, kind)| WatchEventPayload { path, kind })
+        .collect()
+}
+
+#[cfg(test)]
+mod tests {
+    use std::collections::BTreeMap;
+
+    use super::{merge_watch_events, normalize_kind, WatchEventPayload};
+
+    #[test]
+    fn merge_watch_events_cancels_add_then_remove() {
+        let merged = merge_watch_events(vec![
+            WatchEventPayload {
+                path: "/tmp/a.dart".to_string(),
+                kind: "add",
+            },
+            WatchEventPayload {
+                path: "/tmp/a.dart".to_string(),
+                kind: "remove",
+            },
+        ]);
+
+        assert!(merged.is_empty());
+    }
+
+    #[test]
+    fn merge_watch_events_turns_remove_then_add_into_modify() {
+        let merged = merge_watch_events(vec![
+            WatchEventPayload {
+                path: "/tmp/a.dart".to_string(),
+                kind: "remove",
+            },
+            WatchEventPayload {
+                path: "/tmp/a.dart".to_string(),
+                kind: "add",
+            },
+        ]);
+
+        assert_eq!(
+            merged,
+            vec![WatchEventPayload {
+                path: "/tmp/a.dart".to_string(),
+                kind: "modify",
+            }]
+        );
+    }
+
+    #[test]
+    fn normalize_kind_downgrades_existing_add_to_modify() {
+        let mut existing_paths = BTreeMap::new();
+        existing_paths.insert("/tmp/a.dart".to_string(), false);
+
+        assert_eq!(
+            normalize_kind("add", "/tmp/a.dart", &existing_paths),
+            "modify"
+        );
+        assert_eq!(normalize_kind("add", "/tmp/b.dart", &existing_paths), "add");
+    }
+}
