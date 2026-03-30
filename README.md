@@ -158,6 +158,7 @@ not yet a strong public performance claim.
 
 ## Project Documents
 
+- [Public Demo](./docs/public-demo.md)
 - [Vision](./docs/vision.md)
 - [Roadmap](./docs/roadmap.md)
 - [Bootstrap Strategy](./docs/bootstrap-strategy.md)
