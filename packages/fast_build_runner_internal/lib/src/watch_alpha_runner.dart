@@ -32,8 +32,30 @@ class FastWatchAlphaRunner {
         ],
         observedEvents: const [],
         mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
         initialBuild: null,
         incrementalBuild: null,
+        incrementalBuilds: const [],
+      );
+    }
+
+    if (request.incrementalCycles < 1) {
+      return FastWatchAlphaResult(
+        status: 'failure',
+        sourceEngine: request.sourceEngine,
+        upstreamCommit: actualCommit,
+        generatedEntrypointPath: '',
+        runDirectory: '',
+        warnings: const [],
+        errors: const ['Watch alpha requires at least one incremental cycle.'],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: null,
+        incrementalBuild: null,
+        incrementalBuilds: const [],
       );
     }
 
@@ -49,8 +71,11 @@ class FastWatchAlphaRunner {
         errors: ['Fixture template does not exist: ${fixtureTemplateDir.path}'],
         observedEvents: const [],
         mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
         initialBuild: null,
         incrementalBuild: null,
+        incrementalBuilds: const [],
       );
     }
 
@@ -116,6 +141,7 @@ class FastWatchAlphaRunner {
             '--generated-file=lib/person.g.dart',
             '--entrypoint-script=$entrypointPath',
             '--source-engine=${request.sourceEngine}',
+            '--incremental-cycles=${request.incrementalCycles}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
@@ -144,8 +170,11 @@ class FastWatchAlphaRunner {
         errors: ['$error'],
         observedEvents: const [],
         mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
         initialBuild: null,
         incrementalBuild: null,
+        incrementalBuilds: const [],
       );
     } finally {
       if (!request.keepRunDirectory) {

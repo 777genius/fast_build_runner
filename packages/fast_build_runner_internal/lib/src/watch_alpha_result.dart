@@ -10,8 +10,11 @@ class FastWatchAlphaResult {
   final List<String> errors;
   final List<String> observedEvents;
   final List<String> mergedUpdates;
+  final List<List<String>> observedEventBatches;
+  final List<List<String>> mergedUpdateBatches;
   final FastBuildStepResult? initialBuild;
   final FastBuildStepResult? incrementalBuild;
+  final List<FastBuildStepResult> incrementalBuilds;
 
   const FastWatchAlphaResult({
     required this.status,
@@ -23,8 +26,11 @@ class FastWatchAlphaResult {
     required this.errors,
     required this.observedEvents,
     required this.mergedUpdates,
+    required this.observedEventBatches,
+    required this.mergedUpdateBatches,
     required this.initialBuild,
     required this.incrementalBuild,
+    required this.incrementalBuilds,
   });
 
   bool get isSuccess => status == 'success';
@@ -40,8 +46,13 @@ class FastWatchAlphaResult {
     'errors': errors,
     'observedEvents': observedEvents,
     'mergedUpdates': mergedUpdates,
+    'observedEventBatches': observedEventBatches,
+    'mergedUpdateBatches': mergedUpdateBatches,
     'initialBuild': initialBuild?.toJson(),
     'incrementalBuild': incrementalBuild?.toJson(),
+    'incrementalBuilds': incrementalBuilds
+        .map((step) => step.toJson())
+        .toList(),
   };
 
   static FastWatchAlphaResult fromJson(Map<String, Object?> json) =>
@@ -55,6 +66,13 @@ class FastWatchAlphaResult {
         errors: List<String>.from(json['errors']! as List),
         observedEvents: List<String>.from(json['observedEvents']! as List),
         mergedUpdates: List<String>.from(json['mergedUpdates']! as List),
+        observedEventBatches:
+            (json['observedEventBatches'] as List? ?? const [])
+                .map((batch) => List<String>.from(batch as List))
+                .toList(),
+        mergedUpdateBatches: (json['mergedUpdateBatches'] as List? ?? const [])
+            .map((batch) => List<String>.from(batch as List))
+            .toList(),
         initialBuild: json['initialBuild'] == null
             ? null
             : FastBuildStepResult.fromJson(
@@ -65,5 +83,12 @@ class FastWatchAlphaResult {
             : FastBuildStepResult.fromJson(
                 Map<String, Object?>.from(json['incrementalBuild']! as Map),
               ),
+        incrementalBuilds: (json['incrementalBuilds'] as List? ?? const [])
+            .map(
+              (step) => FastBuildStepResult.fromJson(
+                Map<String, Object?>.from(step as Map),
+              ),
+            )
+            .toList(),
       );
 }

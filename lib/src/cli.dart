@@ -103,6 +103,11 @@ class FastBuildRunnerCli {
         defaultsTo: 'dart',
         allowed: const ['dart', 'rust'],
         help: 'Filesystem event source used by watch alpha.',
+      )
+      ..addOption(
+        'incremental-cycles',
+        defaultsTo: '1',
+        help: 'Number of incremental watch batches to execute before exiting.',
       );
 
     final parsed = parser.parse(args);
@@ -119,6 +124,7 @@ class FastBuildRunnerCli {
       ),
       keepRunDirectory: parsed['keep-run-dir'] as bool,
       sourceEngine: parsed['source-engine'] as String,
+      incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );

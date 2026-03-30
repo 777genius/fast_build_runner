@@ -22,11 +22,14 @@ void main() {
       expect(result.upstreamCommit, pinnedBuildRunnerCommit);
       expect(result.initialBuild, isNotNull);
       expect(result.incrementalBuild, isNotNull);
+      expect(result.incrementalBuilds, hasLength(1));
       expect(result.initialBuild!.status, 'success');
       expect(result.incrementalBuild!.status, 'success');
       expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
       expect(result.observedEvents, isNotEmpty);
       expect(result.mergedUpdates, hasLength(1));
+      expect(result.observedEventBatches, hasLength(1));
+      expect(result.mergedUpdateBatches, hasLength(1));
       expect(
         result.mergedUpdates.single,
         contains('bootstrap_json_fixture|lib/person.dart'),
@@ -55,6 +58,7 @@ void main() {
       expect(result.sourceEngine, 'dart');
       expect(result.initialBuild, isNotNull);
       expect(result.incrementalBuild, isNotNull);
+      expect(result.incrementalBuilds, hasLength(1));
       expect(result.initialBuild!.status, 'success');
       expect(result.incrementalBuild!.status, 'failure');
       expect(result.incrementalBuild!.failureType, 'buildScriptChanged');
@@ -82,6 +86,7 @@ void main() {
       expect(result.sourceEngine, 'rust');
       expect(result.initialBuild, isNotNull);
       expect(result.incrementalBuild, isNotNull);
+      expect(result.incrementalBuilds, hasLength(1));
       expect(result.initialBuild!.status, 'success');
       expect(result.incrementalBuild!.status, 'success');
       expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
@@ -99,6 +104,42 @@ void main() {
         contains(
           'Watch alpha used the Rust daemon as the filesystem event source.',
         ),
+      );
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
+    'watch alpha can execute multiple incremental cycles before exiting',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_alpha_multi_cycle',
+          keepRunDirectory: false,
+          incrementalCycles: 2,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.sourceEngine, 'dart');
+      expect(result.incrementalBuilds, hasLength(2));
+      expect(result.incrementalBuild?.name, 'incremental-2');
+      expect(result.observedEventBatches, hasLength(2));
+      expect(result.mergedUpdateBatches, hasLength(2));
+      expect(
+        result.mergedUpdateBatches.every(
+          (batch) => batch.single.contains('lib/person.dart'),
+        ),
+        isTrue,
+      );
+      expect(
+        result.warnings,
+        contains('Watch alpha executed 2 incremental cycles before exiting.'),
       );
       expect(result.errors, isEmpty);
     },

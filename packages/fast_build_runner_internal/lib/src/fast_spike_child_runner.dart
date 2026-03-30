@@ -24,6 +24,8 @@ class FastSpikeChildRunner {
     final packageName = argMap['package-name'];
     final entrypointScript = argMap['entrypoint-script'];
     final sourceEngine = argMap['source-engine'] ?? 'dart';
+    final incrementalCycles =
+        int.tryParse(argMap['incremental-cycles'] ?? '') ?? 1;
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
     if (projectDirectory == null ||
         sourceFile == null ||
@@ -64,6 +66,7 @@ class FastSpikeChildRunner {
                 upstreamCommit: pinnedBuildRunnerCommit,
               ).run(
                 sourceEngine: sourceEngine,
+                incrementalCycles: incrementalCycles,
                 rustDaemonDirectory: rustDaemonDirectory,
                 packageName: resolvedPackageName,
                 sourceFileRelativePath: resolvedSourceFile,
@@ -103,8 +106,11 @@ class FastSpikeChildRunner {
               errors: ['$error'],
               observedEvents: const [],
               mergedUpdates: const [],
+              observedEventBatches: const [],
+              mergedUpdateBatches: const [],
               initialBuild: null,
               incrementalBuild: null,
+              incrementalBuilds: const [],
             )
           : FastBootstrapSpikeResult(
               status: 'failure',
