@@ -24,6 +24,7 @@ class FastWatchBenchmarkRunner {
 
     return FastWatchBenchmarkResult.fromRuns(
       incrementalCycles: request.incrementalCycles,
+      noiseFilesPerCycle: request.noiseFilesPerCycle,
       dartSamples: dartRuns,
       rustSamples: rustRuns,
     );
@@ -45,6 +46,7 @@ class FastWatchBenchmarkRunner {
           keepRunDirectory: request.keepRunDirectory,
           sourceEngine: sourceEngine,
           incrementalCycles: request.incrementalCycles,
+          noiseFilesPerCycle: request.noiseFilesPerCycle,
         ),
       );
       stopwatch.stop();

@@ -110,6 +110,11 @@ class FastBuildRunnerCli {
         'incremental-cycles',
         defaultsTo: '1',
         help: 'Number of incremental watch batches to execute before exiting.',
+      )
+      ..addOption(
+        'noise-files-per-cycle',
+        defaultsTo: '0',
+        help: 'How many unrelated noise files to mutate on every watch cycle.',
       );
 
     final parsed = parser.parse(args);
@@ -127,6 +132,7 @@ class FastBuildRunnerCli {
       keepRunDirectory: parsed['keep-run-dir'] as bool,
       sourceEngine: parsed['source-engine'] as String,
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
+      noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -164,6 +170,11 @@ class FastBuildRunnerCli {
             'How many runs to execute per engine before choosing the median sample.',
       )
       ..addOption(
+        'noise-files-per-cycle',
+        defaultsTo: '0',
+        help: 'How many unrelated noise files to mutate on every watch cycle.',
+      )
+      ..addOption(
         'output',
         defaultsTo: 'json',
         allowed: const ['json', 'summary', 'markdown'],
@@ -185,6 +196,7 @@ class FastBuildRunnerCli {
       keepRunDirectory: parsed['keep-run-dir'] as bool,
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       repeats: int.parse(parsed['repeats'] as String),
+      noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

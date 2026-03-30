@@ -31,6 +31,7 @@ class FastWatchBenchmarkResult {
   final String status;
   final int incrementalCycles;
   final int repeats;
+  final int noiseFilesPerCycle;
   final FastWatchBenchmarkEngineResult dart;
   final FastWatchBenchmarkEngineResult rust;
   final List<FastWatchBenchmarkEngineResult> dartSamples;
@@ -43,6 +44,7 @@ class FastWatchBenchmarkResult {
     required this.status,
     required this.incrementalCycles,
     required this.repeats,
+    required this.noiseFilesPerCycle,
     required this.dart,
     required this.rust,
     required this.dartSamples,
@@ -54,6 +56,7 @@ class FastWatchBenchmarkResult {
 
   factory FastWatchBenchmarkResult.fromRuns({
     required int incrementalCycles,
+    required int noiseFilesPerCycle,
     required List<FastWatchBenchmarkEngineResult> dartSamples,
     required List<FastWatchBenchmarkEngineResult> rustSamples,
   }) {
@@ -80,6 +83,8 @@ class FastWatchBenchmarkResult {
           rustSpeedupVsDart != null &&
           rustIncrementalBuildSpeedupVsDart > rustSpeedupVsDart + 0.1)
         'Incremental build speedup is stronger than total wall-clock speedup, which suggests initial build cost still dominates this fixture.',
+      if (noiseFilesPerCycle > 0)
+        'Each watch cycle injected $noiseFilesPerCycle unrelated filesystem noise file(s) before batch collection.',
     ];
     final errors = <String>[
       if (!dart.result.isSuccess)
@@ -94,6 +99,7 @@ class FastWatchBenchmarkResult {
       repeats: dartSamples.length < rustSamples.length
           ? dartSamples.length
           : rustSamples.length,
+      noiseFilesPerCycle: noiseFilesPerCycle,
       dart: dart,
       rust: rust,
       dartSamples: dartSamples,
@@ -189,6 +195,7 @@ class FastWatchBenchmarkResult {
     'status': status,
     'incrementalCycles': incrementalCycles,
     'repeats': repeats,
+    'noiseFilesPerCycle': noiseFilesPerCycle,
     'dart': dart.toJson(),
     'rust': rust.toJson(),
     'dartSamples': dartSamples.map((sample) => sample.toJson()).toList(),
@@ -196,12 +203,17 @@ class FastWatchBenchmarkResult {
     'rustSpeedupVsDart': rustSpeedupVsDart,
     'rustInitialBuildSpeedupVsDart': rustInitialBuildSpeedupVsDart,
     'rustIncrementalBuildSpeedupVsDart': rustIncrementalBuildSpeedupVsDart,
-    'dartTotalIncrementalBuildMilliseconds': dartTotalIncrementalBuildMilliseconds,
-    'rustTotalIncrementalBuildMilliseconds': rustTotalIncrementalBuildMilliseconds,
-    'rustTotalIncrementalBuildSpeedupVsDart': rustTotalIncrementalBuildSpeedupVsDart,
+    'dartTotalIncrementalBuildMilliseconds':
+        dartTotalIncrementalBuildMilliseconds,
+    'rustTotalIncrementalBuildMilliseconds':
+        rustTotalIncrementalBuildMilliseconds,
+    'rustTotalIncrementalBuildSpeedupVsDart':
+        rustTotalIncrementalBuildSpeedupVsDart,
     'rustWatchCollectionSpeedupVsDart': rustWatchCollectionSpeedupVsDart,
-    'dartTotalWatchCollectionMilliseconds': dartTotalWatchCollectionMilliseconds,
-    'rustTotalWatchCollectionMilliseconds': rustTotalWatchCollectionMilliseconds,
+    'dartTotalWatchCollectionMilliseconds':
+        dartTotalWatchCollectionMilliseconds,
+    'rustTotalWatchCollectionMilliseconds':
+        rustTotalWatchCollectionMilliseconds,
     'warnings': warnings,
     'errors': errors,
   };
@@ -212,6 +224,7 @@ class FastWatchBenchmarkResult {
       'status: $status',
       'incrementalCycles: $incrementalCycles',
       'repeats: $repeats',
+      'noiseFilesPerCycle: $noiseFilesPerCycle',
       'dart: ${dart.elapsedMilliseconds} ms',
       'rust: ${rust.elapsedMilliseconds} ms',
       if (dartSamples.length > 1)
@@ -271,6 +284,7 @@ class FastWatchBenchmarkResult {
       ..writeln('- status: `$status`')
       ..writeln('- incremental cycles: `$incrementalCycles`')
       ..writeln('- repeats: `$repeats`')
+      ..writeln('- noise files per cycle: `$noiseFilesPerCycle`')
       ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
       ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
     if (dartSamples.length > 1) {

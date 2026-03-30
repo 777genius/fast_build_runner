@@ -26,6 +26,8 @@ class FastSpikeChildRunner {
     final sourceEngine = argMap['source-engine'] ?? 'dart';
     final incrementalCycles =
         int.tryParse(argMap['incremental-cycles'] ?? '') ?? 1;
+    final noiseFilesPerCycle =
+        int.tryParse(argMap['noise-files-per-cycle'] ?? '') ?? 0;
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
     if (projectDirectory == null ||
         sourceFile == null ||
@@ -69,6 +71,7 @@ class FastSpikeChildRunner {
               ).run(
                 sourceEngine: sourceEngine,
                 incrementalCycles: incrementalCycles,
+                noiseFilesPerCycle: noiseFilesPerCycle,
                 rustDaemonDirectory: rustDaemonDirectory,
                 packageName: resolvedPackageName,
                 sourceFileRelativePath: resolvedSourceFile,

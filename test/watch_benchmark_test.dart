@@ -14,12 +14,14 @@ void main() {
           fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
           workDirectoryPath: '$repoRoot/.dart_tool/test_watch_benchmark',
           keepRunDirectory: false,
+          noiseFilesPerCycle: 2,
         ),
       );
 
       expect(result.status, 'success');
       expect(result.incrementalCycles, 1);
       expect(result.repeats, 1);
+      expect(result.noiseFilesPerCycle, 2);
       expect(result.dart.sourceEngine, 'dart');
       expect(result.rust.sourceEngine, 'rust');
       expect(result.dartSamples, hasLength(1));
@@ -40,6 +42,7 @@ void main() {
       status: 'success',
       incrementalCycles: 2,
       repeats: 2,
+      noiseFilesPerCycle: 3,
       dart: FastWatchBenchmarkEngineResult(
         sourceEngine: 'dart',
         elapsedMilliseconds: 1200,
@@ -235,6 +238,7 @@ void main() {
 
     expect(summary, contains('dart: 1200 ms'));
     expect(summary, contains('repeats: 2'));
+    expect(summary, contains('noiseFilesPerCycle: 3'));
     expect(summary, contains('dartSamples: 1200, 1400'));
     expect(summary, contains('rustSamples: 800, 900'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
@@ -252,6 +256,7 @@ void main() {
     expect(summary, contains('rustWatchCollectionSpeedupVsDart: 1.54x'));
     expect(summary, contains('rustSpeedupVsDart: 1.50x'));
     expect(markdown, contains('# fast_build_runner watch benchmark'));
+    expect(markdown, contains('- noise files per cycle: `3`'));
     expect(markdown, contains('- rust incremental build: `80 ms`'));
     expect(markdown, contains('- rust total incremental build: `80 ms`'));
     expect(markdown, contains('- rust watch collection: `260, 280 ms`'));
@@ -277,6 +282,7 @@ void main() {
     () {
       final result = FastWatchBenchmarkResult.fromRuns(
         incrementalCycles: 1,
+        noiseFilesPerCycle: 0,
         dartSamples: const [
           FastWatchBenchmarkEngineResult(
             sourceEngine: 'dart',
@@ -394,6 +400,7 @@ void main() {
   test('watch benchmark chooses the median sample for each engine', () {
     final result = FastWatchBenchmarkResult.fromRuns(
       incrementalCycles: 1,
+      noiseFilesPerCycle: 0,
       dartSamples: const [
         FastWatchBenchmarkEngineResult(
           sourceEngine: 'dart',

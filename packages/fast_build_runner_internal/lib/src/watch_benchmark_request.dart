@@ -5,6 +5,7 @@ class FastWatchBenchmarkRequest {
   final bool keepRunDirectory;
   final int incrementalCycles;
   final int repeats;
+  final int noiseFilesPerCycle;
 
   const FastWatchBenchmarkRequest({
     required this.repoRoot,
@@ -13,5 +14,6 @@ class FastWatchBenchmarkRequest {
     required this.keepRunDirectory,
     this.incrementalCycles = 1,
     this.repeats = 1,
+    this.noiseFilesPerCycle = 0,
   });
 }

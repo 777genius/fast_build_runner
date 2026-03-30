@@ -7,6 +7,7 @@ class FastWatchAlphaRequest {
   final bool simulateDroppedSourceUpdateOnIncremental;
   final String sourceEngine;
   final int incrementalCycles;
+  final int noiseFilesPerCycle;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -17,5 +18,6 @@ class FastWatchAlphaRequest {
     this.simulateDroppedSourceUpdateOnIncremental = false,
     this.sourceEngine = 'dart',
     this.incrementalCycles = 1,
+    this.noiseFilesPerCycle = 0,
   });
 }

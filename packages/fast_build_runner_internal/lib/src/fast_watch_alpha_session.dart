@@ -30,6 +30,7 @@ class FastWatchAlphaSession {
   Future<FastWatchAlphaResult> run({
     required String sourceEngine,
     required int incrementalCycles,
+    required int noiseFilesPerCycle,
     required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
@@ -115,7 +116,8 @@ class FastWatchAlphaSession {
         final rustStartupStopwatch = Stopwatch()..start();
         rustClient = await _prepareRustSession(rustDaemonDirectory);
         rustStartupStopwatch.stop();
-        rustDaemonStartupMilliseconds = rustStartupStopwatch.elapsedMilliseconds;
+        rustDaemonStartupMilliseconds =
+            rustStartupStopwatch.elapsedMilliseconds;
       }
       final observedEventBatches = <List<String>>[];
       final mergedUpdateBatches = <List<String>>[];
@@ -132,6 +134,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          noiseFilesPerCycle: noiseFilesPerCycle,
           mutateBuildScriptBeforeIncremental:
               cycleIndex == 0 && mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
@@ -222,6 +225,8 @@ class FastWatchAlphaSession {
             'Watch alpha used the Rust daemon as the filesystem event source.',
           if (incrementalCycles > 1)
             'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
+          if (noiseFilesPerCycle > 0)
+            'Watch alpha injected $noiseFilesPerCycle unrelated noise file(s) on every incremental cycle.',
           if (mutateBuildScriptBeforeIncremental)
             'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
           if (simulateDroppedSourceUpdateOnIncremental)
@@ -290,6 +295,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) {
@@ -300,6 +306,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          noiseFilesPerCycle: noiseFilesPerCycle,
           mutateBuildScriptBeforeIncremental:
               mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
@@ -310,6 +317,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          noiseFilesPerCycle: noiseFilesPerCycle,
           mutateBuildScriptBeforeIncremental:
               mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
@@ -321,6 +329,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
@@ -333,6 +342,12 @@ class FastWatchAlphaSession {
       final watcher = DirectoryWatcher(Directory.current.path);
       subscription = watcher.events.listen((event) {
         observedEvents.add('${event.type}:${event.path}');
+        quietTimer?.cancel();
+        quietTimer = Timer(const Duration(milliseconds: 350), () {
+          if (!batchCompleter.isCompleted) {
+            batchCompleter.complete(List<WatchEvent>.from(pendingEvents));
+          }
+        });
         if (!_shouldTrackRelativePath(
           _relativePath(event.path),
           sourceFileRelativePath,
@@ -340,12 +355,6 @@ class FastWatchAlphaSession {
           return;
         }
         pendingEvents.add(event);
-        quietTimer?.cancel();
-        quietTimer = Timer(const Duration(milliseconds: 350), () {
-          if (!batchCompleter.isCompleted) {
-            batchCompleter.complete(List<WatchEvent>.from(pendingEvents));
-          }
-        });
       });
       await watcher.ready;
       await Future<void>.delayed(const Duration(milliseconds: 100));
@@ -353,6 +362,7 @@ class FastWatchAlphaSession {
       await _performWatchMutation(
         sourceFileRelativePath: sourceFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
+        noiseFilesPerCycle: noiseFilesPerCycle,
         mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
         cycleIndex: cycleIndex,
       );
@@ -379,6 +389,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
@@ -400,7 +411,9 @@ class FastWatchAlphaSession {
       warmupMs: 125,
     );
     if (readyResponse is RustDaemonErrorResponse) {
-      throw StateError('Rust daemon startWatch failed: ${readyResponse.message}');
+      throw StateError(
+        'Rust daemon startWatch failed: ${readyResponse.message}',
+      );
     }
     if (readyResponse is! RustDaemonWatchReadyResponse) {
       throw StateError(
@@ -410,6 +423,7 @@ class FastWatchAlphaSession {
     await _performWatchMutation(
       sourceFileRelativePath: sourceFileRelativePath,
       generatedEntrypointPath: generatedEntrypointPath,
+      noiseFilesPerCycle: noiseFilesPerCycle,
       mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       cycleIndex: cycleIndex,
     );
@@ -446,12 +460,17 @@ class FastWatchAlphaSession {
   Future<void> _performWatchMutation({
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
     await _mutateFixtureSource(sourceFileRelativePath, cycleIndex);
     await Future<void>.delayed(const Duration(milliseconds: 50));
     await _appendSourceBurstComment(sourceFileRelativePath, cycleIndex);
+    if (noiseFilesPerCycle > 0) {
+      await Future<void>.delayed(const Duration(milliseconds: 20));
+      await _mutateNoiseFiles(cycleIndex, noiseFilesPerCycle);
+    }
     if (mutateBuildScriptBeforeIncremental) {
       await Future<void>.delayed(const Duration(milliseconds: 50));
       await _mutateBuildScript(generatedEntrypointPath);
@@ -617,6 +636,24 @@ class FastWatchAlphaSession {
     file.writeAsStringSync('$original\n$marker\n');
   }
 
+  Future<void> _mutateNoiseFiles(int cycleIndex, int noiseFilesPerCycle) async {
+    final noiseDirectory = Directory(
+      p.join(Directory.current.path, '.dart_tool', 'fast_build_runner_noise'),
+    )..createSync(recursive: true);
+    for (var noiseIndex = 0; noiseIndex < noiseFilesPerCycle; noiseIndex++) {
+      final file = File(
+        p.join(
+          noiseDirectory.path,
+          'noise_${cycleIndex + 1}_${noiseIndex + 1}.txt',
+        ),
+      );
+      file.writeAsStringSync(
+        'cycle=${cycleIndex + 1}\nnoise=${noiseIndex + 1}\n'
+        'timestamp=${DateTime.now().microsecondsSinceEpoch}\n',
+      );
+    }
+  }
+
   Future<void> _mutateFixtureSource(
     String sourceFileRelativePath,
     int cycleIndex,
@@ -643,17 +680,15 @@ class FastWatchAlphaSession {
     }
     const constructorSuffix = '});';
     const factoryMarker = '  factory Person.fromJson';
-    if (!original.contains(constructorSuffix) || !original.contains(factoryMarker)) {
+    if (!original.contains(constructorSuffix) ||
+        !original.contains(factoryMarker)) {
       throw StateError(
         'Mutation markers not found in watch alpha fixture source.',
       );
     }
     return original
         .replaceFirst(constructorSuffix, ', this.$fieldName$constructorSuffix')
-        .replaceFirst(
-          factoryMarker,
-          '$newFieldLine\n\n$factoryMarker',
-        );
+        .replaceFirst(factoryMarker, '$newFieldLine\n\n$factoryMarker');
   }
 
   _FieldMutation _fieldForCycle(int cycleIndex) {
@@ -685,8 +720,5 @@ class _FieldMutation {
   final String name;
   final String type;
 
-  const _FieldMutation({
-    required this.name,
-    required this.type,
-  });
+  const _FieldMutation({required this.name, required this.type});
 }

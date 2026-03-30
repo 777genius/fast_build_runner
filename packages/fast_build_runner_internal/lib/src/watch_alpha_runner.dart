@@ -58,6 +58,24 @@ class FastWatchAlphaRunner {
         incrementalBuilds: const [],
       );
     }
+    if (request.noiseFilesPerCycle < 0) {
+      return FastWatchAlphaResult(
+        status: 'failure',
+        sourceEngine: request.sourceEngine,
+        upstreamCommit: actualCommit,
+        generatedEntrypointPath: '',
+        runDirectory: '',
+        warnings: const [],
+        errors: const ['Watch alpha requires noiseFilesPerCycle >= 0.'],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: null,
+        incrementalBuild: null,
+        incrementalBuilds: const [],
+      );
+    }
 
     final fixtureTemplateDir = Directory(request.fixtureTemplatePath);
     if (!fixtureTemplateDir.existsSync()) {
@@ -142,6 +160,7 @@ class FastWatchAlphaRunner {
             '--entrypoint-script=$entrypointPath',
             '--source-engine=${request.sourceEngine}',
             '--incremental-cycles=${request.incrementalCycles}',
+            '--noise-files-per-cycle=${request.noiseFilesPerCycle}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',

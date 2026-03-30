@@ -5,6 +5,46 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'watch alpha can absorb unrelated noise files without widening merged updates',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath: '$repoRoot/.dart_tool/test_watch_alpha_noise',
+          keepRunDirectory: false,
+          noiseFilesPerCycle: 3,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.incrementalBuilds, hasLength(1));
+      expect(result.observedEventBatches, hasLength(1));
+      expect(
+        result.observedEventBatches.single.any(
+          (event) => event.contains('.dart_tool/fast_build_runner_noise'),
+        ),
+        isTrue,
+      );
+      expect(result.mergedUpdateBatches, hasLength(1));
+      expect(result.mergedUpdateBatches.single, hasLength(1));
+      expect(
+        result.mergedUpdateBatches.single.single,
+        contains('bootstrap_json_fixture|lib/person.dart'),
+      );
+      expect(
+        result.warnings,
+        contains(
+          'Watch alpha injected 3 unrelated noise file(s) on every incremental cycle.',
+        ),
+      );
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
     'watch alpha observes file changes and rebuilds incrementally',
     () async {
       final repoRoot = Directory.current.path;
@@ -205,7 +245,9 @@ void main() {
         result.warnings.any(
           (warning) =>
               warning.contains('incremental-1:') &&
-              warning.contains('Replaced watcher updates with filesystem resync updates.'),
+              warning.contains(
+                'Replaced watcher updates with filesystem resync updates.',
+              ),
         ),
         isTrue,
       );
