@@ -46,6 +46,48 @@ class FastWatchBenchmarkResult {
     required this.errors,
   });
 
+  factory FastWatchBenchmarkResult.fromRuns({
+    required int incrementalCycles,
+    required FastWatchBenchmarkEngineResult dart,
+    required FastWatchBenchmarkEngineResult rust,
+  }) {
+    final rustSpeedupVsDart = rust.elapsedMilliseconds > 0
+        ? dart.elapsedMilliseconds / rust.elapsedMilliseconds
+        : null;
+    final rustIncrementalBuildSpeedupVsDart =
+        dart.result.incrementalBuild != null &&
+                rust.result.incrementalBuild != null &&
+            rust.result.incrementalBuild!.elapsedMilliseconds > 0
+        ? dart.result.incrementalBuild!.elapsedMilliseconds /
+              rust.result.incrementalBuild!.elapsedMilliseconds
+        : null;
+
+    final warnings = <String>[
+      if (rustSpeedupVsDart != null)
+        'Rust source engine speedup vs dart source engine: ${rustSpeedupVsDart.toStringAsFixed(2)}x',
+      if (rustIncrementalBuildSpeedupVsDart != null &&
+          rustSpeedupVsDart != null &&
+          rustIncrementalBuildSpeedupVsDart > rustSpeedupVsDart + 0.1)
+        'Incremental build speedup is stronger than total wall-clock speedup, which suggests initial build cost still dominates this fixture.',
+    ];
+    final errors = <String>[
+      if (!dart.result.isSuccess)
+        'Dart benchmark run failed: ${dart.result.errors.join(' | ')}',
+      if (!rust.result.isSuccess)
+        'Rust benchmark run failed: ${rust.result.errors.join(' | ')}',
+    ];
+
+    return FastWatchBenchmarkResult(
+      status: errors.isEmpty ? 'success' : 'failure',
+      incrementalCycles: incrementalCycles,
+      dart: dart,
+      rust: rust,
+      rustSpeedupVsDart: rustSpeedupVsDart,
+      warnings: warnings,
+      errors: errors,
+    );
+  }
+
   bool get isSuccess => status == 'success';
   int get exitCode => isSuccess ? 0 : 1;
   double? get rustInitialBuildSpeedupVsDart {

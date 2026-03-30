@@ -156,4 +156,118 @@ void main() {
     );
     expect(markdown, contains('- rust speedup vs dart: `1.50x`'));
   });
+
+  test(
+    'watch benchmark adds interpretation warning when incremental gain is stronger than total gain',
+    () {
+      final result = FastWatchBenchmarkResult.fromRuns(
+        incrementalCycles: 1,
+        dart: FastWatchBenchmarkEngineResult(
+          sourceEngine: 'dart',
+          elapsedMilliseconds: 1000,
+          result: const FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'dart',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'run-dart',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: FastBuildStepResult(
+              name: 'initial',
+              elapsedMilliseconds: 900,
+              status: 'success',
+              failureType: null,
+              outputs: [],
+              errors: [],
+              generatedFileExists: true,
+              generatedFileHasMutation: false,
+            ),
+            incrementalBuild: FastBuildStepResult(
+              name: 'incremental-1',
+              elapsedMilliseconds: 200,
+              status: 'success',
+              failureType: null,
+              outputs: [],
+              errors: [],
+              generatedFileExists: true,
+              generatedFileHasMutation: true,
+            ),
+            incrementalBuilds: [
+              FastBuildStepResult(
+                name: 'incremental-1',
+                elapsedMilliseconds: 200,
+                status: 'success',
+                failureType: null,
+                outputs: [],
+                errors: [],
+                generatedFileExists: true,
+                generatedFileHasMutation: true,
+              ),
+            ],
+          ),
+        ),
+        rust: FastWatchBenchmarkEngineResult(
+          sourceEngine: 'rust',
+          elapsedMilliseconds: 950,
+          result: const FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'rust',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'run-rust',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: FastBuildStepResult(
+              name: 'initial',
+              elapsedMilliseconds: 890,
+              status: 'success',
+              failureType: null,
+              outputs: [],
+              errors: [],
+              generatedFileExists: true,
+              generatedFileHasMutation: false,
+            ),
+            incrementalBuild: FastBuildStepResult(
+              name: 'incremental-1',
+              elapsedMilliseconds: 100,
+              status: 'success',
+              failureType: null,
+              outputs: [],
+              errors: [],
+              generatedFileExists: true,
+              generatedFileHasMutation: true,
+            ),
+            incrementalBuilds: [
+              FastBuildStepResult(
+                name: 'incremental-1',
+                elapsedMilliseconds: 100,
+                status: 'success',
+                failureType: null,
+                outputs: [],
+                errors: [],
+                generatedFileExists: true,
+                generatedFileHasMutation: true,
+              ),
+            ],
+          ),
+        ),
+      );
+
+      expect(
+        result.warnings,
+        contains(
+          'Incremental build speedup is stronger than total wall-clock speedup, which suggests initial build cost still dominates this fixture.',
+        ),
+      );
+    },
+  );
 }

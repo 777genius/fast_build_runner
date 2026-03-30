@@ -22,28 +22,10 @@ class FastWatchBenchmarkRunner {
       request: request,
     );
 
-    final speedup = rustRun.elapsedMilliseconds > 0
-        ? dartRun.elapsedMilliseconds / rustRun.elapsedMilliseconds
-        : null;
-    final warnings = <String>[
-      if (speedup != null)
-        'Rust source engine speedup vs dart source engine: ${speedup.toStringAsFixed(2)}x',
-    ];
-    final errors = <String>[
-      if (!dartRun.result.isSuccess)
-        'Dart benchmark run failed: ${dartRun.result.errors.join(' | ')}',
-      if (!rustRun.result.isSuccess)
-        'Rust benchmark run failed: ${rustRun.result.errors.join(' | ')}',
-    ];
-
-    return FastWatchBenchmarkResult(
-      status: errors.isEmpty ? 'success' : 'failure',
+    return FastWatchBenchmarkResult.fromRuns(
       incrementalCycles: request.incrementalCycles,
       dart: dartRun,
       rust: rustRun,
-      rustSpeedupVsDart: speedup,
-      warnings: warnings,
-      errors: errors,
     );
   }
 
