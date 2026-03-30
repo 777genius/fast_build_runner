@@ -25,4 +25,25 @@ void main() {
     expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
     expect(result.errors, isEmpty);
   }, timeout: const Timeout(Duration(minutes: 2)));
+
+  test('bootstrap spike detects build script changes on incremental run', () async {
+    final repoRoot = Directory.current.path;
+    final result = await FastBootstrapSpikeRunner().run(
+      FastBootstrapSpikeRequest(
+        repoRoot: repoRoot,
+        fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+        workDirectoryPath: '$repoRoot/.dart_tool/test_bootstrap_spike_build_script_change',
+        keepRunDirectory: false,
+        mutateBuildScriptBeforeIncremental: true,
+      ),
+    );
+
+    expect(result.status, 'success');
+    expect(result.initialBuild, isNotNull);
+    expect(result.incrementalBuild, isNotNull);
+    expect(result.initialBuild!.status, 'success');
+    expect(result.incrementalBuild!.status, 'failure');
+    expect(result.incrementalBuild!.failureType, 'buildScriptChanged');
+    expect(result.errors, isEmpty);
+  }, timeout: const Timeout(Duration(minutes: 2)));
 }

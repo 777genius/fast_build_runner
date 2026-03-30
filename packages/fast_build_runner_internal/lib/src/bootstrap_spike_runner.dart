@@ -6,11 +6,13 @@ import 'dart:io';
 import 'package:path/path.dart' as p;
 import 'package:yaml/yaml.dart';
 
+import 'package:build_runner/src/constants.dart';
 import 'package:build_runner/src/bootstrap/processes.dart';
 
 import 'bootstrap_spike_request.dart';
 import 'bootstrap_spike_result.dart';
 import 'fast_bootstrap_generator.dart';
+import 'fast_bootstrapper.dart';
 import 'upstream_pin.dart';
 
 class FastBootstrapSpikeRunner {
@@ -48,13 +50,7 @@ class FastBootstrapSpikeRunner {
     }
 
     final runDirectory = await _createRunDirectory(request.workDirectoryPath);
-    final entrypointPath = p.join(
-      runDirectory.path,
-      '.dart_tool',
-      'build',
-      'entrypoint',
-      'fast_build_runner_spike.dart',
-    );
+    final entrypointPath = p.join(runDirectory.path, entrypointScriptPath);
 
     try {
       await _copyDirectory(fixtureTemplateDir, runDirectory);
@@ -80,6 +76,19 @@ class FastBootstrapSpikeRunner {
         ),
         upstreamCommit: actualCommit,
       );
+      final bootstrapper = FastBootstrapper(
+        workspace: false,
+        compileAot: false,
+      );
+      final compileResult = await _withWorkingDirectory(
+        runDirectory.path,
+        bootstrapper.ensureCompiled,
+      );
+      if (!compileResult.succeeded) {
+        throw StateError(
+          'Failed to compile generated entrypoint.\n${compileResult.messages ?? ''}',
+        );
+      }
 
       final packageConfigUri = Uri.file(
         p.join(runDirectory.path, '.dart_tool', 'package_config.json'),
@@ -90,12 +99,18 @@ class FastBootstrapSpikeRunner {
       Directory.current = runDirectory;
       try {
         final childResult = await ParentProcess.runAndSend(
-          script: entrypointPath,
+          script: p.join(
+            runDirectory.path,
+            bootstrapper.entrypointExecutablePath,
+          ),
           arguments: [
             '--project-dir=${runDirectory.path}',
             '--package-name=$packageName',
             '--source-file=lib/person.dart',
             '--generated-file=lib/person.g.dart',
+            '--entrypoint-script=$entrypointPath',
+            if (request.mutateBuildScriptBeforeIncremental)
+              '--mutate-build-script-before-incremental=true',
           ],
           message: parentMessage,
           jitVmArgs: const [],
@@ -130,6 +145,19 @@ class FastBootstrapSpikeRunner {
           await runDirectory.delete(recursive: true);
         }
       }
+    }
+  }
+
+  Future<T> _withWorkingDirectory<T>(
+    String directory,
+    Future<T> Function() action,
+  ) async {
+    final previous = Directory.current;
+    Directory.current = Directory(directory);
+    try {
+      return await action();
+    } finally {
+      Directory.current = previous;
     }
   }
 

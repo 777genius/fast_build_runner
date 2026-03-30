@@ -3,12 +3,14 @@
 import 'dart:io';
 
 import 'package:build/build.dart';
-import 'package:build_runner/src/internal.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:path/path.dart' as p;
 import 'package:watcher/watcher.dart';
 
 import 'bootstrap_spike_result.dart';
+import 'fast_build_plan.dart';
+import 'fast_build_series.dart';
+import 'package:build_runner/src/internal.dart';
 
 class FastSpikeSession {
   final BuilderFactories builderFactories;
@@ -25,8 +27,9 @@ class FastSpikeSession {
     required String generatedFileRelativePath,
     required String generatedEntrypointPath,
     required String runDirectory,
+    required bool mutateBuildScriptBeforeIncremental,
   }) async {
-    final buildPlan = await BuildPlan.load(
+    final buildPlan = await FastBuildPlan.load(
       builderFactories: builderFactories,
       buildOptions: BuildOptions(
         buildDirs: BuiltSet<BuildDirectory>(),
@@ -58,7 +61,7 @@ class FastSpikeSession {
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
         warnings: const [
-          'BuildPlan reported restartIsNeeded. Full bootstrap freshness parity is deferred in this spike.',
+          'FastBuildPlan reported restartIsNeeded during bootstrap load. Full restart parity remains deferred for this path.',
         ],
         errors: const [],
         initialBuild: null,
@@ -66,7 +69,7 @@ class FastSpikeSession {
       );
     }
 
-    final buildSeries = BuildSeries(buildPlan);
+    final buildSeries = FastBuildSeries(buildPlan);
     try {
       final initialBuild = await buildSeries.run({}, recentlyBootstrapped: true);
       final initialResult = _stepResult(
@@ -76,6 +79,9 @@ class FastSpikeSession {
       );
 
       await _mutateFixtureSource(sourceFileRelativePath);
+      if (mutateBuildScriptBeforeIncremental) {
+        await _mutateBuildScript(generatedEntrypointPath);
+      }
 
       final incrementalBuild = await buildSeries.run({
         AssetId(packageName, sourceFileRelativePath): ChangeType.MODIFY,
@@ -86,25 +92,38 @@ class FastSpikeSession {
         generatedFileRelativePath: generatedFileRelativePath,
       );
 
-      final success =
-          initialBuild.status == BuildStatus.success &&
+      final sawExpectedBuildScriptChange =
+          mutateBuildScriptBeforeIncremental &&
+          incrementalResult.failureType == 'buildScriptChanged';
+      final sawExpectedMutation =
+          !mutateBuildScriptBeforeIncremental &&
           incrementalBuild.status == BuildStatus.success &&
           incrementalResult.generatedFileExists &&
           incrementalResult.generatedFileHasMutation;
+      final success =
+          initialBuild.status == BuildStatus.success &&
+          (sawExpectedMutation || sawExpectedBuildScriptChange);
 
       return FastBootstrapSpikeResult(
         status: success ? 'success' : 'failure',
         upstreamCommit: upstreamCommit,
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
-        warnings: const [
-          'Subsequent build-script freshness parity is intentionally deferred because the custom child path does not set upstream ChildProcess.isRunning.',
-        ],
+        warnings:
+            mutateBuildScriptBeforeIncremental
+                ? const [
+                  'The generated entrypoint was intentionally mutated before the second run to verify buildScriptChanged detection.',
+                ]
+                : const [],
         errors: [
           ...initialResult.errors,
           ...incrementalResult.errors,
-          if (!incrementalResult.generatedFileHasMutation)
+          if (!mutateBuildScriptBeforeIncremental &&
+              !incrementalResult.generatedFileHasMutation)
             'Incremental build finished without the expected generated output mutation.',
+          if (mutateBuildScriptBeforeIncremental &&
+              incrementalResult.failureType != 'buildScriptChanged')
+            'Incremental build did not surface buildScriptChanged after the generated entrypoint was mutated.',
         ],
         initialBuild: initialResult,
         incrementalBuild: incrementalResult,
@@ -143,6 +162,22 @@ class FastSpikeSession {
       return 'cantCreate';
     }
     return 'general';
+  }
+
+  Future<void> _mutateBuildScript(String generatedEntrypointPath) async {
+    final file = File(generatedEntrypointPath);
+    if (!file.existsSync()) {
+      throw StateError(
+        'Cannot mutate generated entrypoint because it does not exist: $generatedEntrypointPath',
+      );
+    }
+    final original = file.readAsStringSync();
+    if (original.contains('// fast_build_runner mutated build script marker')) {
+      return;
+    }
+    file.writeAsStringSync(
+      '$original\n// fast_build_runner mutated build script marker\n',
+    );
   }
 
   Future<void> _mutateFixtureSource(String sourceFileRelativePath) async {

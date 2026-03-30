@@ -19,10 +19,12 @@ class FastSpikeChildRunner {
     final sourceFile = argMap['source-file'];
     final generatedFile = argMap['generated-file'];
     final packageName = argMap['package-name'];
+    final entrypointScript = argMap['entrypoint-script'];
     if (projectDirectory == null ||
         sourceFile == null ||
         generatedFile == null ||
-        packageName == null) {
+        packageName == null ||
+        entrypointScript == null) {
       await ChildProcess.exitWithMessage(
         exitCode: 64,
         message: jsonEncode({
@@ -42,6 +44,9 @@ class FastSpikeChildRunner {
     final resolvedSourceFile = sourceFile;
     final resolvedGeneratedFile = generatedFile;
     final resolvedPackageName = packageName;
+    final resolvedEntrypointScript = entrypointScript;
+    final mutateBuildScriptBeforeIncremental =
+        argMap['mutate-build-script-before-incremental'] == 'true';
 
     Directory.current = resolvedProjectDirectory;
     FastBootstrapSpikeResult result;
@@ -53,14 +58,15 @@ class FastSpikeChildRunner {
         packageName: resolvedPackageName,
         sourceFileRelativePath: resolvedSourceFile,
         generatedFileRelativePath: resolvedGeneratedFile,
-        generatedEntrypointPath: Platform.script.toFilePath(),
+        generatedEntrypointPath: resolvedEntrypointScript,
         runDirectory: resolvedProjectDirectory,
+        mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       );
     } catch (error) {
       result = FastBootstrapSpikeResult(
         status: 'failure',
         upstreamCommit: pinnedBuildRunnerCommit,
-        generatedEntrypointPath: Platform.script.toFilePath(),
+        generatedEntrypointPath: resolvedEntrypointScript,
         runDirectory: resolvedProjectDirectory,
         warnings: const [],
         errors: ['$error'],
