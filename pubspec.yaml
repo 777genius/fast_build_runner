@@ -1,0 +1,24 @@
+name: fast_build_runner
+publish_to: none
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  args: ^2.7.0
+  fast_build_runner_internal:
+    path: packages/fast_build_runner_internal
+
+dev_dependencies:
+  lints: ^6.0.0
+  test: ^1.25.5
+
+dependency_overrides:
+  build:
+    path: research/dart-build/build
+  build_config:
+    path: research/dart-build/build_config
+  build_daemon:
+    path: research/dart-build/build_daemon
+  build_runner:
+    path: research/dart-build/build_runner
+

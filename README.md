@@ -71,6 +71,10 @@ It is:
 The project is therefore explicitly targeting strong acceleration from the
 start, while still avoiding a deep upstream fork.
 
+The currently pinned upstream `build_runner` research commit is:
+
+- `2b1450e313a188a1027f04940e0e4e82372d6530`
+
 One major constraint from the real upstream code is now fixed in the plan:
 
 - external code does not directly get runtime `BuilderFactories`

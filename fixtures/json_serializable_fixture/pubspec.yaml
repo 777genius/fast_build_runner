@@ -1,0 +1,11 @@
+name: bootstrap_json_fixture
+publish_to: none
+environment:
+  sdk: ^3.10.0
+
+dependencies:
+  json_annotation: ^4.9.0
+
+dev_dependencies:
+  json_serializable: ^6.11.1
+
