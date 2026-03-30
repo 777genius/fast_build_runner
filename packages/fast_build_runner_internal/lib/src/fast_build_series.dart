@@ -18,6 +18,8 @@ import 'package:build_runner/src/logging/build_log.dart';
 import 'package:built_collection/built_collection.dart';
 import 'package:watcher/watcher.dart';
 
+import 'deferred_asset_graph_reader_writer.dart';
+
 /// Narrow copy of upstream BuildSeries for the bootstrap spike.
 ///
 /// The upstream implementation rebuilds a derived BuildPlan with copyWith() on
@@ -50,7 +52,7 @@ class FastBuildSeries {
 
   factory FastBuildSeries(BuildPlan buildPlan) {
     final assetGraph = buildPlan.takeAssetGraph();
-    final readerWriter = buildPlan.readerWriter.copyWith(
+    final baseReaderWriter = buildPlan.readerWriter.copyWith(
       generatedAssetHider:
           buildPlan.testingOverrides.flattenOutput
               ? const NoopGeneratedAssetHider()
@@ -59,6 +61,10 @@ class FastBuildSeries {
           buildPlan.buildOptions.enableLowResourcesMode
               ? const PassthroughFilesystemCache()
               : InMemoryFilesystemCache(),
+    );
+    final readerWriter = DeferredAssetGraphReaderWriter(
+      delegate: baseReaderWriter,
+      assetGraphId: AssetId(buildPlan.buildPackages.outputRoot, assetGraphPath),
     );
     return FastBuildSeries._(
       buildPlan: buildPlan,
@@ -110,6 +116,7 @@ class FastBuildSeries {
     }
 
     if (updates.keys.any(_isBuildConfiguration)) {
+      await _flushDeferredWrites();
       _buildPlan = await _buildPlan.reload();
       await _buildPlan.deleteFilesAndFolders();
       if (_buildPlan.restartIsNeeded) {
@@ -163,8 +170,16 @@ class FastBuildSeries {
     }
     _closingCompleter.complete();
     await _currentBuildResult;
+    await _flushDeferredWrites();
     await _resourceManager.beforeExit();
     await _buildResultsController.close();
+  }
+
+  Future<void> _flushDeferredWrites() async {
+    if (_readerWriter is DeferredAssetGraphReaderWriter) {
+      await (_readerWriter as DeferredAssetGraphReaderWriter)
+          .flushDeferredWrites();
+    }
   }
 
   bool _isBuildConfiguration(AssetId id) =>
