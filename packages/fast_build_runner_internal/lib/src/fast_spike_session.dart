@@ -71,9 +71,15 @@ class FastSpikeSession {
 
     final buildSeries = FastBuildSeries(buildPlan);
     try {
-      final initialBuild = await buildSeries.run({}, recentlyBootstrapped: true);
+      final initialStopwatch = Stopwatch()..start();
+      final initialBuild = await buildSeries.run(
+        {},
+        recentlyBootstrapped: true,
+      );
+      initialStopwatch.stop();
       final initialResult = _stepResult(
         name: 'initial',
+        elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
         buildResult: initialBuild,
         generatedFileRelativePath: generatedFileRelativePath,
       );
@@ -83,11 +89,14 @@ class FastSpikeSession {
         await _mutateBuildScript(generatedEntrypointPath);
       }
 
+      final incrementalStopwatch = Stopwatch()..start();
       final incrementalBuild = await buildSeries.run({
         AssetId(packageName, sourceFileRelativePath): ChangeType.MODIFY,
       }, recentlyBootstrapped: false);
+      incrementalStopwatch.stop();
       final incrementalResult = _stepResult(
         name: 'incremental',
+        elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
         buildResult: incrementalBuild,
         generatedFileRelativePath: generatedFileRelativePath,
       );
@@ -109,12 +118,11 @@ class FastSpikeSession {
         upstreamCommit: upstreamCommit,
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
-        warnings:
-            mutateBuildScriptBeforeIncremental
-                ? const [
-                  'The generated entrypoint was intentionally mutated before the second run to verify buildScriptChanged detection.',
-                ]
-                : const [],
+        warnings: mutateBuildScriptBeforeIncremental
+            ? const [
+                'The generated entrypoint was intentionally mutated before the second run to verify buildScriptChanged detection.',
+              ]
+            : const [],
         errors: [
           ...initialResult.errors,
           ...incrementalResult.errors,
@@ -135,14 +143,19 @@ class FastSpikeSession {
 
   FastBuildStepResult _stepResult({
     required String name,
+    required int elapsedMilliseconds,
     required BuildResult buildResult,
     required String generatedFileRelativePath,
   }) {
-    final generatedFile = File(p.join(Directory.current.path, generatedFileRelativePath));
-    final generatedContent =
-        generatedFile.existsSync() ? generatedFile.readAsStringSync() : '';
+    final generatedFile = File(
+      p.join(Directory.current.path, generatedFileRelativePath),
+    );
+    final generatedContent = generatedFile.existsSync()
+        ? generatedFile.readAsStringSync()
+        : '';
     return FastBuildStepResult(
       name: name,
+      elapsedMilliseconds: elapsedMilliseconds,
       status: buildResult.status.name,
       failureType: _failureType(buildResult),
       outputs: buildResult.outputs.map((assetId) => '$assetId').toList(),
@@ -189,19 +202,16 @@ class FastSpikeSession {
     }
     const constructorMarker = '  const Person({required this.name, this.age});';
     const fieldMarker = '  final int? age;';
-    if (!original.contains(constructorMarker) || !original.contains(fieldMarker)) {
+    if (!original.contains(constructorMarker) ||
+        !original.contains(fieldMarker)) {
       throw StateError('Mutation markers not found in fixture source.');
     }
-    final updated =
-        original
-            .replaceFirst(
-              constructorMarker,
-              '  const Person({required this.name, this.age, this.nickname});',
-            )
-            .replaceFirst(
-              fieldMarker,
-              '$fieldMarker\n  final String? nickname;',
-            );
+    final updated = original
+        .replaceFirst(
+          constructorMarker,
+          '  const Person({required this.name, this.age, this.nickname});',
+        )
+        .replaceFirst(fieldMarker, '$fieldMarker\n  final String? nickname;');
     file.writeAsStringSync(updated);
   }
 }

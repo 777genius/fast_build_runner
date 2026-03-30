@@ -66,6 +66,14 @@ class FastWatchBenchmarkResult {
       'incrementalCycles: $incrementalCycles',
       'dart: ${dart.elapsedMilliseconds} ms',
       'rust: ${rust.elapsedMilliseconds} ms',
+      if (dart.result.initialBuild != null)
+        'dartInitialBuild: ${dart.result.initialBuild!.elapsedMilliseconds} ms',
+      if (rust.result.initialBuild != null)
+        'rustInitialBuild: ${rust.result.initialBuild!.elapsedMilliseconds} ms',
+      if (dart.result.incrementalBuild != null)
+        'dartIncrementalBuild: ${dart.result.incrementalBuild!.elapsedMilliseconds} ms',
+      if (rust.result.incrementalBuild != null)
+        'rustIncrementalBuild: ${rust.result.incrementalBuild!.elapsedMilliseconds} ms',
       if (rustSpeedupVsDart != null)
         'rustSpeedupVsDart: ${rustSpeedupVsDart!.toStringAsFixed(2)}x',
       'dartResult: ${dart.result.status}',
@@ -90,6 +98,26 @@ class FastWatchBenchmarkResult {
       ..writeln('- incremental cycles: `$incrementalCycles`')
       ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
       ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
+    if (dart.result.initialBuild != null) {
+      buffer.writeln(
+        '- dart initial build: `${dart.result.initialBuild!.elapsedMilliseconds} ms`',
+      );
+    }
+    if (rust.result.initialBuild != null) {
+      buffer.writeln(
+        '- rust initial build: `${rust.result.initialBuild!.elapsedMilliseconds} ms`',
+      );
+    }
+    if (dart.result.incrementalBuild != null) {
+      buffer.writeln(
+        '- dart incremental build: `${dart.result.incrementalBuild!.elapsedMilliseconds} ms`',
+      );
+    }
+    if (rust.result.incrementalBuild != null) {
+      buffer.writeln(
+        '- rust incremental build: `${rust.result.incrementalBuild!.elapsedMilliseconds} ms`',
+      );
+    }
     if (rustSpeedupVsDart != null) {
       buffer.writeln(
         '- rust speedup vs dart: `${rustSpeedupVsDart!.toStringAsFixed(2)}x`',

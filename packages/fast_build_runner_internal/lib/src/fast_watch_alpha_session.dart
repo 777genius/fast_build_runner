@@ -94,12 +94,15 @@ class FastWatchAlphaSession {
     StreamSubscription<BuildResult>? resultSubscription;
 
     try {
+      final initialStopwatch = Stopwatch()..start();
       final initialBuild = await buildSeries.run(
         {},
         recentlyBootstrapped: true,
       );
+      initialStopwatch.stop();
       final initialResult = _stepResult(
         name: 'initial',
+        elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
         buildResult: initialBuild,
         generatedFileRelativePath: generatedFileRelativePath,
       );
@@ -135,7 +138,9 @@ class FastWatchAlphaSession {
         );
 
         final expectedBuildCount = buildResults.length + 1;
+        final incrementalStopwatch = Stopwatch()..start();
         await scheduler.enqueue(mergedUpdates);
+        incrementalStopwatch.stop();
         if (buildResults.length < expectedBuildCount) {
           throw StateError(
             'Watch alpha scheduler became idle without producing build #$expectedBuildCount.',
@@ -145,6 +150,7 @@ class FastWatchAlphaSession {
         incrementalResults.add(
           _stepResult(
             name: 'incremental-${cycleIndex + 1}',
+            elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
             buildResult: buildResults[expectedBuildCount - 1],
             generatedFileRelativePath: generatedFileRelativePath,
           ),
@@ -466,6 +472,7 @@ class FastWatchAlphaSession {
 
   FastBuildStepResult _stepResult({
     required String name,
+    required int elapsedMilliseconds,
     required BuildResult buildResult,
     required String generatedFileRelativePath,
   }) {
@@ -477,6 +484,7 @@ class FastWatchAlphaSession {
         : '';
     return FastBuildStepResult(
       name: name,
+      elapsedMilliseconds: elapsedMilliseconds,
       status: buildResult.status.name,
       failureType: _failureType(buildResult),
       outputs: buildResult.outputs.map((assetId) => '$assetId').toList(),

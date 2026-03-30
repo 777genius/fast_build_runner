@@ -1,5 +1,6 @@
 class FastBuildStepResult {
   final String name;
+  final int elapsedMilliseconds;
   final String status;
   final String? failureType;
   final List<String> outputs;
@@ -9,6 +10,7 @@ class FastBuildStepResult {
 
   const FastBuildStepResult({
     required this.name,
+    required this.elapsedMilliseconds,
     required this.status,
     required this.failureType,
     required this.outputs,
@@ -19,6 +21,7 @@ class FastBuildStepResult {
 
   Map<String, Object?> toJson() => {
     'name': name,
+    'elapsedMilliseconds': elapsedMilliseconds,
     'status': status,
     'failureType': failureType,
     'outputs': outputs,
@@ -30,6 +33,7 @@ class FastBuildStepResult {
   static FastBuildStepResult fromJson(Map<String, Object?> json) =>
       FastBuildStepResult(
         name: json['name']! as String,
+        elapsedMilliseconds: json['elapsedMilliseconds']! as int,
         status: json['status']! as String,
         failureType: json['failureType'] as String?,
         outputs: List<String>.from(json['outputs']! as List),
@@ -82,18 +86,15 @@ class FastBootstrapSpikeResult {
         runDirectory: json['runDirectory']! as String,
         warnings: List<String>.from(json['warnings']! as List),
         errors: List<String>.from(json['errors']! as List),
-        initialBuild:
-            json['initialBuild'] == null
-                ? null
-                : FastBuildStepResult.fromJson(
-                  Map<String, Object?>.from(json['initialBuild']! as Map),
-                ),
-        incrementalBuild:
-            json['incrementalBuild'] == null
-                ? null
-                : FastBuildStepResult.fromJson(
-                  Map<String, Object?>.from(json['incrementalBuild']! as Map),
-                ),
+        initialBuild: json['initialBuild'] == null
+            ? null
+            : FastBuildStepResult.fromJson(
+                Map<String, Object?>.from(json['initialBuild']! as Map),
+              ),
+        incrementalBuild: json['incrementalBuild'] == null
+            ? null
+            : FastBuildStepResult.fromJson(
+                Map<String, Object?>.from(json['incrementalBuild']! as Map),
+              ),
       );
 }
-
