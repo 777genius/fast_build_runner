@@ -12,6 +12,8 @@ class FastWatchAlphaResult {
   final List<String> mergedUpdates;
   final List<List<String>> observedEventBatches;
   final List<List<String>> mergedUpdateBatches;
+  final int? rustDaemonStartupMilliseconds;
+  final List<int> watchCollectionMilliseconds;
   final FastBuildStepResult? initialBuild;
   final FastBuildStepResult? incrementalBuild;
   final List<FastBuildStepResult> incrementalBuilds;
@@ -28,6 +30,8 @@ class FastWatchAlphaResult {
     required this.mergedUpdates,
     required this.observedEventBatches,
     required this.mergedUpdateBatches,
+    this.rustDaemonStartupMilliseconds,
+    this.watchCollectionMilliseconds = const [],
     required this.initialBuild,
     required this.incrementalBuild,
     required this.incrementalBuilds,
@@ -48,6 +52,8 @@ class FastWatchAlphaResult {
     'mergedUpdates': mergedUpdates,
     'observedEventBatches': observedEventBatches,
     'mergedUpdateBatches': mergedUpdateBatches,
+    'rustDaemonStartupMilliseconds': rustDaemonStartupMilliseconds,
+    'watchCollectionMilliseconds': watchCollectionMilliseconds,
     'initialBuild': initialBuild?.toJson(),
     'incrementalBuild': incrementalBuild?.toJson(),
     'incrementalBuilds': incrementalBuilds
@@ -73,6 +79,11 @@ class FastWatchAlphaResult {
         mergedUpdateBatches: (json['mergedUpdateBatches'] as List? ?? const [])
             .map((batch) => List<String>.from(batch as List))
             .toList(),
+        rustDaemonStartupMilliseconds:
+            json['rustDaemonStartupMilliseconds'] as int?,
+        watchCollectionMilliseconds: List<int>.from(
+          json['watchCollectionMilliseconds'] as List? ?? const [],
+        ),
         initialBuild: json['initialBuild'] == null
             ? null
             : FastBuildStepResult.fromJson(

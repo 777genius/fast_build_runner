@@ -23,6 +23,7 @@ void main() {
       expect(result.initialBuild, isNotNull);
       expect(result.incrementalBuild, isNotNull);
       expect(result.incrementalBuilds, hasLength(1));
+      expect(result.watchCollectionMilliseconds, hasLength(1));
       expect(result.initialBuild!.status, 'success');
       expect(result.incrementalBuild!.status, 'success');
       expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
@@ -87,6 +88,8 @@ void main() {
       expect(result.initialBuild, isNotNull);
       expect(result.incrementalBuild, isNotNull);
       expect(result.incrementalBuilds, hasLength(1));
+      expect(result.rustDaemonStartupMilliseconds, isNotNull);
+      expect(result.watchCollectionMilliseconds, hasLength(1));
       expect(result.initialBuild!.status, 'success');
       expect(result.incrementalBuild!.status, 'success');
       expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
@@ -128,6 +131,7 @@ void main() {
       expect(result.status, 'success');
       expect(result.sourceEngine, 'dart');
       expect(result.incrementalBuilds, hasLength(2));
+      expect(result.watchCollectionMilliseconds, hasLength(2));
       expect(result.incrementalBuild?.name, 'incremental-2');
       expect(result.observedEventBatches, hasLength(2));
       expect(result.mergedUpdateBatches, hasLength(2));
@@ -163,6 +167,7 @@ void main() {
 
       expect(result.status, 'success');
       expect(result.incrementalBuilds, hasLength(1));
+      expect(result.watchCollectionMilliseconds, hasLength(1));
       expect(result.incrementalBuild!.status, 'success');
       expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
       expect(

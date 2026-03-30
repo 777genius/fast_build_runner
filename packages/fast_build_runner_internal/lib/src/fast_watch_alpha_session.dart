@@ -93,6 +93,7 @@ class FastWatchAlphaSession {
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
     RustDaemonSession? rustClient;
+    int? rustDaemonStartupMilliseconds;
     StreamSubscription<BuildResult>? resultSubscription;
 
     try {
@@ -110,16 +111,21 @@ class FastWatchAlphaSession {
       );
 
       resultSubscription = scheduler.results.listen(buildResults.add);
-      rustClient = sourceEngine == 'rust'
-          ? await _prepareRustSession(rustDaemonDirectory)
-          : null;
+      if (sourceEngine == 'rust') {
+        final rustStartupStopwatch = Stopwatch()..start();
+        rustClient = await _prepareRustSession(rustDaemonDirectory);
+        rustStartupStopwatch.stop();
+        rustDaemonStartupMilliseconds = rustStartupStopwatch.elapsedMilliseconds;
+      }
       final observedEventBatches = <List<String>>[];
       final mergedUpdateBatches = <List<String>>[];
+      final watchCollectionMilliseconds = <int>[];
       final incrementalResults = <FastBuildStepResult>[];
       final resolutionWarnings = <String>[];
       _CollectedWatchBatch? lastWatchBatch;
 
       for (var cycleIndex = 0; cycleIndex < incrementalCycles; cycleIndex++) {
+        final watchCollectionStopwatch = Stopwatch()..start();
         final watchBatch = await _collectWatchBatch(
           sourceEngine: sourceEngine,
           rustClient: rustClient,
@@ -130,6 +136,7 @@ class FastWatchAlphaSession {
               cycleIndex == 0 && mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
         );
+        watchCollectionStopwatch.stop();
         lastWatchBatch = watchBatch;
 
         final resolution = await resolveWatchBatch(
@@ -150,6 +157,9 @@ class FastWatchAlphaSession {
           );
         }
         observedEventBatches.add(List<String>.from(watchBatch.observedEvents));
+        watchCollectionMilliseconds.add(
+          watchCollectionStopwatch.elapsedMilliseconds,
+        );
         mergedUpdateBatches.add(
           mergedUpdates.entries
               .map((entry) => '${entry.key}:${entry.value}')
@@ -241,6 +251,8 @@ class FastWatchAlphaSession {
         mergedUpdates: lastMergedUpdates,
         observedEventBatches: observedEventBatches,
         mergedUpdateBatches: mergedUpdateBatches,
+        rustDaemonStartupMilliseconds: rustDaemonStartupMilliseconds,
+        watchCollectionMilliseconds: watchCollectionMilliseconds,
         initialBuild: initialResult,
         incrementalBuild: lastIncremental,
         incrementalBuilds: incrementalResults,
