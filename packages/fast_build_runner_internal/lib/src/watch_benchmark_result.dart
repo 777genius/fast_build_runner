@@ -115,6 +115,35 @@ class FastWatchBenchmarkResult {
     return dartInitial / rustInitial;
   }
 
+  int? get dartTotalIncrementalBuildMilliseconds {
+    final incrementalBuilds = dart.result.incrementalBuilds;
+    if (incrementalBuilds.isEmpty) {
+      return null;
+    }
+    return incrementalBuilds
+        .map((step) => step.elapsedMilliseconds)
+        .reduce((a, b) => a + b);
+  }
+
+  int? get rustTotalIncrementalBuildMilliseconds {
+    final incrementalBuilds = rust.result.incrementalBuilds;
+    if (incrementalBuilds.isEmpty) {
+      return null;
+    }
+    return incrementalBuilds
+        .map((step) => step.elapsedMilliseconds)
+        .reduce((a, b) => a + b);
+  }
+
+  double? get rustTotalIncrementalBuildSpeedupVsDart {
+    final dartTotal = dartTotalIncrementalBuildMilliseconds;
+    final rustTotal = rustTotalIncrementalBuildMilliseconds;
+    if (dartTotal == null || rustTotal == null || rustTotal == 0) {
+      return null;
+    }
+    return dartTotal / rustTotal;
+  }
+
   double? get rustIncrementalBuildSpeedupVsDart {
     final dartIncremental = dart.result.incrementalBuild?.elapsedMilliseconds;
     final rustIncremental = rust.result.incrementalBuild?.elapsedMilliseconds;
@@ -140,6 +169,22 @@ class FastWatchBenchmarkResult {
     return dartTotal / rustTotal;
   }
 
+  int? get dartTotalWatchCollectionMilliseconds {
+    final timings = dart.result.watchCollectionMilliseconds;
+    if (timings.isEmpty) {
+      return null;
+    }
+    return timings.reduce((a, b) => a + b);
+  }
+
+  int? get rustTotalWatchCollectionMilliseconds {
+    final timings = rust.result.watchCollectionMilliseconds;
+    if (timings.isEmpty) {
+      return null;
+    }
+    return timings.reduce((a, b) => a + b);
+  }
+
   Map<String, Object?> toJson() => {
     'status': status,
     'incrementalCycles': incrementalCycles,
@@ -151,7 +196,12 @@ class FastWatchBenchmarkResult {
     'rustSpeedupVsDart': rustSpeedupVsDart,
     'rustInitialBuildSpeedupVsDart': rustInitialBuildSpeedupVsDart,
     'rustIncrementalBuildSpeedupVsDart': rustIncrementalBuildSpeedupVsDart,
+    'dartTotalIncrementalBuildMilliseconds': dartTotalIncrementalBuildMilliseconds,
+    'rustTotalIncrementalBuildMilliseconds': rustTotalIncrementalBuildMilliseconds,
+    'rustTotalIncrementalBuildSpeedupVsDart': rustTotalIncrementalBuildSpeedupVsDart,
     'rustWatchCollectionSpeedupVsDart': rustWatchCollectionSpeedupVsDart,
+    'dartTotalWatchCollectionMilliseconds': dartTotalWatchCollectionMilliseconds,
+    'rustTotalWatchCollectionMilliseconds': rustTotalWatchCollectionMilliseconds,
     'warnings': warnings,
     'errors': errors,
   };
@@ -176,16 +226,26 @@ class FastWatchBenchmarkResult {
         'dartIncrementalBuild: ${dart.result.incrementalBuild!.elapsedMilliseconds} ms',
       if (rust.result.incrementalBuild != null)
         'rustIncrementalBuild: ${rust.result.incrementalBuild!.elapsedMilliseconds} ms',
+      if (dartTotalIncrementalBuildMilliseconds != null)
+        'dartTotalIncrementalBuild: $dartTotalIncrementalBuildMilliseconds ms',
+      if (rustTotalIncrementalBuildMilliseconds != null)
+        'rustTotalIncrementalBuild: $rustTotalIncrementalBuildMilliseconds ms',
       if (dart.result.watchCollectionMilliseconds.isNotEmpty)
         'dartWatchCollection: ${dart.result.watchCollectionMilliseconds.join(', ')} ms',
       if (rust.result.watchCollectionMilliseconds.isNotEmpty)
         'rustWatchCollection: ${rust.result.watchCollectionMilliseconds.join(', ')} ms',
+      if (dartTotalWatchCollectionMilliseconds != null)
+        'dartTotalWatchCollection: $dartTotalWatchCollectionMilliseconds ms',
+      if (rustTotalWatchCollectionMilliseconds != null)
+        'rustTotalWatchCollection: $rustTotalWatchCollectionMilliseconds ms',
       if (rust.result.rustDaemonStartupMilliseconds != null)
         'rustDaemonStartup: ${rust.result.rustDaemonStartupMilliseconds} ms',
       if (rustInitialBuildSpeedupVsDart != null)
         'rustInitialBuildSpeedupVsDart: ${rustInitialBuildSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustIncrementalBuildSpeedupVsDart != null)
         'rustIncrementalBuildSpeedupVsDart: ${rustIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x',
+      if (rustTotalIncrementalBuildSpeedupVsDart != null)
+        'rustTotalIncrementalBuildSpeedupVsDart: ${rustTotalIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustWatchCollectionSpeedupVsDart != null)
         'rustWatchCollectionSpeedupVsDart: ${rustWatchCollectionSpeedupVsDart!.toStringAsFixed(2)}x',
       if (rustSpeedupVsDart != null)
@@ -243,6 +303,16 @@ class FastWatchBenchmarkResult {
         '- rust incremental build: `${rust.result.incrementalBuild!.elapsedMilliseconds} ms`',
       );
     }
+    if (dartTotalIncrementalBuildMilliseconds != null) {
+      buffer.writeln(
+        '- dart total incremental build: `$dartTotalIncrementalBuildMilliseconds ms`',
+      );
+    }
+    if (rustTotalIncrementalBuildMilliseconds != null) {
+      buffer.writeln(
+        '- rust total incremental build: `$rustTotalIncrementalBuildMilliseconds ms`',
+      );
+    }
     if (dart.result.watchCollectionMilliseconds.isNotEmpty) {
       buffer.writeln(
         '- dart watch collection: `${dart.result.watchCollectionMilliseconds.join(', ')} ms`',
@@ -258,6 +328,16 @@ class FastWatchBenchmarkResult {
         '- rust daemon startup: `${rust.result.rustDaemonStartupMilliseconds} ms`',
       );
     }
+    if (dartTotalWatchCollectionMilliseconds != null) {
+      buffer.writeln(
+        '- dart total watch collection: `$dartTotalWatchCollectionMilliseconds ms`',
+      );
+    }
+    if (rustTotalWatchCollectionMilliseconds != null) {
+      buffer.writeln(
+        '- rust total watch collection: `$rustTotalWatchCollectionMilliseconds ms`',
+      );
+    }
     if (rustSpeedupVsDart != null) {
       buffer.writeln(
         '- rust speedup vs dart: `${rustSpeedupVsDart!.toStringAsFixed(2)}x`',
@@ -271,6 +351,11 @@ class FastWatchBenchmarkResult {
     if (rustIncrementalBuildSpeedupVsDart != null) {
       buffer.writeln(
         '- rust incremental build speedup vs dart: `${rustIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x`',
+      );
+    }
+    if (rustTotalIncrementalBuildSpeedupVsDart != null) {
+      buffer.writeln(
+        '- rust total incremental build speedup vs dart: `${rustTotalIncrementalBuildSpeedupVsDart!.toStringAsFixed(2)}x`',
       );
     }
     if (rustWatchCollectionSpeedupVsDart != null) {

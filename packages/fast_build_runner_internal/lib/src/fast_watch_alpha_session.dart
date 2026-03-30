@@ -565,10 +565,9 @@ class FastWatchAlphaSession {
       outputs: buildResult.outputs.map((assetId) => '$assetId').toList(),
       errors: buildResult.errors.toList(),
       generatedFileExists: generatedFile.existsSync(),
-      generatedFileHasMutation:
-          generatedContent.contains('nickname') ||
-          generatedContent.contains('country') ||
-          generatedContent.contains('isVerified'),
+      generatedFileHasMutation: RegExp(
+        r'(nickname|country|isVerified|extraField\d+)',
+      ).hasMatch(generatedContent),
     );
   }
 
@@ -624,61 +623,49 @@ class FastWatchAlphaSession {
   ) async {
     final file = File(p.join(Directory.current.path, sourceFileRelativePath));
     final original = file.readAsStringSync();
-    final updated = switch (cycleIndex) {
-      0 => _applyFieldMutation(
-        original: original,
-        existingConstructorFragment: 'required this.name, this.age',
-        newConstructorFragment: 'required this.name, this.age, this.nickname',
-        existingFieldMarker: '  final int? age;',
-        newFieldLine: '  final String? nickname;',
-      ),
-      1 => _applyFieldMutation(
-        original: original,
-        existingConstructorFragment:
-            'required this.name, this.age, this.nickname',
-        newConstructorFragment:
-            'required this.name, this.age, this.nickname, this.country',
-        existingFieldMarker: '  final String? nickname;',
-        newFieldLine: '  final String? country;',
-      ),
-      2 => _applyFieldMutation(
-        original: original,
-        existingConstructorFragment:
-            'required this.name, this.age, this.nickname, this.country',
-        newConstructorFragment:
-            'required this.name, this.age, this.nickname, this.country, this.isVerified',
-        existingFieldMarker: '  final String? country;',
-        newFieldLine: '  final bool? isVerified;',
-      ),
-      _ => throw StateError(
-        'Watch alpha supports at most 3 incremental fixture mutation cycles right now.',
-      ),
-    };
+    final field = _fieldForCycle(cycleIndex);
+    final updated = _applyFieldMutation(
+      original: original,
+      fieldName: field.name,
+      fieldType: field.type,
+    );
     file.writeAsStringSync(updated);
   }
 
   String _applyFieldMutation({
     required String original,
-    required String existingConstructorFragment,
-    required String newConstructorFragment,
-    required String existingFieldMarker,
-    required String newFieldLine,
+    required String fieldName,
+    required String fieldType,
   }) {
+    final newFieldLine = '  final $fieldType $fieldName;';
     if (original.contains(newFieldLine)) {
       return original;
     }
-    if (!original.contains(existingConstructorFragment) ||
-        !original.contains(existingFieldMarker)) {
+    const constructorSuffix = '});';
+    const factoryMarker = '  factory Person.fromJson';
+    if (!original.contains(constructorSuffix) || !original.contains(factoryMarker)) {
       throw StateError(
         'Mutation markers not found in watch alpha fixture source.',
       );
     }
     return original
-        .replaceFirst(existingConstructorFragment, newConstructorFragment)
+        .replaceFirst(constructorSuffix, ', this.$fieldName$constructorSuffix')
         .replaceFirst(
-          existingFieldMarker,
-          '$existingFieldMarker\n$newFieldLine',
+          factoryMarker,
+          '$newFieldLine\n\n$factoryMarker',
         );
+  }
+
+  _FieldMutation _fieldForCycle(int cycleIndex) {
+    return switch (cycleIndex) {
+      0 => const _FieldMutation(name: 'nickname', type: 'String?'),
+      1 => const _FieldMutation(name: 'country', type: 'String?'),
+      2 => const _FieldMutation(name: 'isVerified', type: 'bool?'),
+      _ => _FieldMutation(
+        name: 'extraField${cycleIndex + 1}',
+        type: cycleIndex.isEven ? 'String?' : 'int?',
+      ),
+    };
   }
 }
 
@@ -691,5 +678,15 @@ class _CollectedWatchBatch {
     required this.observedEvents,
     required this.mergedUpdates,
     required this.isEmpty,
+  });
+}
+
+class _FieldMutation {
+  final String name;
+  final String type;
+
+  const _FieldMutation({
+    required this.name,
+    required this.type,
   });
 }

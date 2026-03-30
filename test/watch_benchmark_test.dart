@@ -239,20 +239,31 @@ void main() {
     expect(summary, contains('rustSamples: 800, 900'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
     expect(summary, contains('rustIncrementalBuild: 80 ms'));
+    expect(summary, contains('dartTotalIncrementalBuild: 120 ms'));
+    expect(summary, contains('rustTotalIncrementalBuild: 80 ms'));
     expect(summary, contains('dartWatchCollection: 410, 420 ms'));
     expect(summary, contains('rustWatchCollection: 260, 280 ms'));
+    expect(summary, contains('dartTotalWatchCollection: 830 ms'));
+    expect(summary, contains('rustTotalWatchCollection: 540 ms'));
     expect(summary, contains('rustDaemonStartup: 180 ms'));
     expect(summary, contains('rustInitialBuildSpeedupVsDart: 1.06x'));
     expect(summary, contains('rustIncrementalBuildSpeedupVsDart: 1.50x'));
+    expect(summary, contains('rustTotalIncrementalBuildSpeedupVsDart: 1.50x'));
     expect(summary, contains('rustWatchCollectionSpeedupVsDart: 1.54x'));
     expect(summary, contains('rustSpeedupVsDart: 1.50x'));
     expect(markdown, contains('# fast_build_runner watch benchmark'));
     expect(markdown, contains('- rust incremental build: `80 ms`'));
+    expect(markdown, contains('- rust total incremental build: `80 ms`'));
     expect(markdown, contains('- rust watch collection: `260, 280 ms`'));
+    expect(markdown, contains('- rust total watch collection: `540 ms`'));
     expect(markdown, contains('- rust daemon startup: `180 ms`'));
     expect(
       markdown,
       contains('- rust incremental build speedup vs dart: `1.50x`'),
+    );
+    expect(
+      markdown,
+      contains('- rust total incremental build speedup vs dart: `1.50x`'),
     );
     expect(
       markdown,

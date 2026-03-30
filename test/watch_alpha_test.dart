@@ -151,6 +151,31 @@ void main() {
   );
 
   test(
+    'watch alpha can execute more than three incremental cycles',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_alpha_four_cycles',
+          keepRunDirectory: false,
+          incrementalCycles: 4,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.incrementalBuilds, hasLength(4));
+      expect(result.watchCollectionMilliseconds, hasLength(4));
+      expect(result.incrementalBuild?.name, 'incremental-4');
+      expect(result.incrementalBuilds.last.generatedFileHasMutation, isTrue);
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 4)),
+  );
+
+  test(
     'watch alpha resyncs from the filesystem when the source update is dropped',
     () async {
       final repoRoot = Directory.current.path;
