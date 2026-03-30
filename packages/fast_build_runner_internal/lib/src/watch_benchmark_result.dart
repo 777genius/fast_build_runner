@@ -32,6 +32,8 @@ class FastWatchBenchmarkResult {
   final int incrementalCycles;
   final int repeats;
   final int noiseFilesPerCycle;
+  final bool continuousScheduling;
+  final int extraFixtureModels;
   final FastWatchBenchmarkEngineResult dart;
   final FastWatchBenchmarkEngineResult rust;
   final List<FastWatchBenchmarkEngineResult> dartSamples;
@@ -45,6 +47,8 @@ class FastWatchBenchmarkResult {
     required this.incrementalCycles,
     required this.repeats,
     required this.noiseFilesPerCycle,
+    required this.continuousScheduling,
+    required this.extraFixtureModels,
     required this.dart,
     required this.rust,
     required this.dartSamples,
@@ -57,6 +61,8 @@ class FastWatchBenchmarkResult {
   factory FastWatchBenchmarkResult.fromRuns({
     required int incrementalCycles,
     required int noiseFilesPerCycle,
+    required bool continuousScheduling,
+    required int extraFixtureModels,
     required List<FastWatchBenchmarkEngineResult> dartSamples,
     required List<FastWatchBenchmarkEngineResult> rustSamples,
   }) {
@@ -85,6 +91,10 @@ class FastWatchBenchmarkResult {
         'Incremental build speedup is stronger than total wall-clock speedup, which suggests initial build cost still dominates this fixture.',
       if (noiseFilesPerCycle > 0)
         'Each watch cycle injected $noiseFilesPerCycle unrelated filesystem noise file(s) before batch collection.',
+      if (continuousScheduling)
+        'Continuous scheduling stayed subscribed to watch batches while builds were in flight.',
+      if (extraFixtureModels > 0)
+        'The copied benchmark fixture was expanded with $extraFixtureModels extra json_serializable model(s).',
     ];
     final errors = <String>[
       if (!dart.result.isSuccess)
@@ -100,6 +110,8 @@ class FastWatchBenchmarkResult {
           ? dartSamples.length
           : rustSamples.length,
       noiseFilesPerCycle: noiseFilesPerCycle,
+      continuousScheduling: continuousScheduling,
+      extraFixtureModels: extraFixtureModels,
       dart: dart,
       rust: rust,
       dartSamples: dartSamples,
@@ -196,6 +208,8 @@ class FastWatchBenchmarkResult {
     'incrementalCycles': incrementalCycles,
     'repeats': repeats,
     'noiseFilesPerCycle': noiseFilesPerCycle,
+    'continuousScheduling': continuousScheduling,
+    'extraFixtureModels': extraFixtureModels,
     'dart': dart.toJson(),
     'rust': rust.toJson(),
     'dartSamples': dartSamples.map((sample) => sample.toJson()).toList(),
@@ -225,6 +239,8 @@ class FastWatchBenchmarkResult {
       'incrementalCycles: $incrementalCycles',
       'repeats: $repeats',
       'noiseFilesPerCycle: $noiseFilesPerCycle',
+      'continuousScheduling: $continuousScheduling',
+      'extraFixtureModels: $extraFixtureModels',
       'dart: ${dart.elapsedMilliseconds} ms',
       'rust: ${rust.elapsedMilliseconds} ms',
       if (dartSamples.length > 1)
@@ -285,6 +301,8 @@ class FastWatchBenchmarkResult {
       ..writeln('- incremental cycles: `$incrementalCycles`')
       ..writeln('- repeats: `$repeats`')
       ..writeln('- noise files per cycle: `$noiseFilesPerCycle`')
+      ..writeln('- continuous scheduling: `$continuousScheduling`')
+      ..writeln('- extra fixture models: `$extraFixtureModels`')
       ..writeln('- dart: `${dart.elapsedMilliseconds} ms`')
       ..writeln('- rust: `${rust.elapsedMilliseconds} ms`');
     if (dartSamples.length > 1) {

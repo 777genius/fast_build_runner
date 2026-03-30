@@ -28,6 +28,7 @@ class FastSpikeChildRunner {
         int.tryParse(argMap['incremental-cycles'] ?? '') ?? 1;
     final noiseFilesPerCycle =
         int.tryParse(argMap['noise-files-per-cycle'] ?? '') ?? 0;
+    final continuousScheduling = argMap['continuous-scheduling'] == 'true';
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
     if (projectDirectory == null ||
         sourceFile == null ||
@@ -72,6 +73,7 @@ class FastSpikeChildRunner {
                 sourceEngine: sourceEngine,
                 incrementalCycles: incrementalCycles,
                 noiseFilesPerCycle: noiseFilesPerCycle,
+                continuousScheduling: continuousScheduling,
                 rustDaemonDirectory: rustDaemonDirectory,
                 packageName: resolvedPackageName,
                 sourceFileRelativePath: resolvedSourceFile,

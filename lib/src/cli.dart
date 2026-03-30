@@ -115,6 +115,18 @@ class FastBuildRunnerCli {
         'noise-files-per-cycle',
         defaultsTo: '0',
         help: 'How many unrelated noise files to mutate on every watch cycle.',
+      )
+      ..addFlag(
+        'continuous-scheduling',
+        negatable: false,
+        help:
+            'Keep collecting watch batches while a build is in flight and let the scheduler coalesce them.',
+      )
+      ..addOption(
+        'extra-fixture-models',
+        defaultsTo: '0',
+        help:
+            'Generate extra json_serializable models inside the copied fixture to make the benchmark heavier.',
       );
 
     final parsed = parser.parse(args);
@@ -133,6 +145,8 @@ class FastBuildRunnerCli {
       sourceEngine: parsed['source-engine'] as String,
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
+      continuousScheduling: parsed['continuous-scheduling'] as bool,
+      extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -174,6 +188,18 @@ class FastBuildRunnerCli {
         defaultsTo: '0',
         help: 'How many unrelated noise files to mutate on every watch cycle.',
       )
+      ..addFlag(
+        'continuous-scheduling',
+        negatable: false,
+        help:
+            'Keep collecting watch batches while a build is in flight and let the scheduler coalesce them.',
+      )
+      ..addOption(
+        'extra-fixture-models',
+        defaultsTo: '0',
+        help:
+            'Generate extra json_serializable models inside the copied fixture to make the benchmark heavier.',
+      )
       ..addOption(
         'output',
         defaultsTo: 'json',
@@ -197,6 +223,8 @@ class FastBuildRunnerCli {
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       repeats: int.parse(parsed['repeats'] as String),
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
+      continuousScheduling: parsed['continuous-scheduling'] as bool,
+      extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

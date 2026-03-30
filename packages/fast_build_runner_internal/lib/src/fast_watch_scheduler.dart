@@ -12,19 +12,33 @@ import 'watch_update_merger.dart';
 /// New update batches that arrive while a build is in flight are merged into a
 /// single pending batch and processed immediately after the current build
 /// completes.
+class FastWatchScheduledBuild<T> {
+  final Map<AssetId, ChangeType> updates;
+  final int elapsedMilliseconds;
+  final T result;
+
+  const FastWatchScheduledBuild({
+    required this.updates,
+    required this.elapsedMilliseconds,
+    required this.result,
+  });
+}
+
 class FastWatchScheduler<T> {
   final Future<T> Function(Map<AssetId, ChangeType> updates) _onBuild;
-  final StreamController<T> _resultsController = StreamController.broadcast();
+  final StreamController<FastWatchScheduledBuild<T>> _resultsController =
+      StreamController.broadcast();
 
   Map<AssetId, ChangeType> _pendingUpdates = <AssetId, ChangeType>{};
   Future<void>? _pumpFuture;
   Completer<void> _idleCompleter = Completer<void>()..complete();
   bool _closed = false;
 
-  FastWatchScheduler({required Future<T> Function(Map<AssetId, ChangeType>) onBuild})
-    : _onBuild = onBuild;
+  FastWatchScheduler({
+    required Future<T> Function(Map<AssetId, ChangeType>) onBuild,
+  }) : _onBuild = onBuild;
 
-  Stream<T> get results => _resultsController.stream;
+  Stream<FastWatchScheduledBuild<T>> get results => _resultsController.stream;
 
   bool get isBusy => _pumpFuture != null;
 
@@ -59,8 +73,16 @@ class FastWatchScheduler<T> {
       while (_pendingUpdates.isNotEmpty) {
         final updates = _pendingUpdates;
         _pendingUpdates = <AssetId, ChangeType>{};
+        final stopwatch = Stopwatch()..start();
         final result = await _onBuild(updates);
-        _resultsController.add(result);
+        stopwatch.stop();
+        _resultsController.add(
+          FastWatchScheduledBuild(
+            updates: Map<AssetId, ChangeType>.from(updates),
+            elapsedMilliseconds: stopwatch.elapsedMilliseconds,
+            result: result,
+          ),
+        );
       }
     } finally {
       _pumpFuture = null;

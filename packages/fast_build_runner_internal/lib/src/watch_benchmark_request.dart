@@ -6,6 +6,8 @@ class FastWatchBenchmarkRequest {
   final int incrementalCycles;
   final int repeats;
   final int noiseFilesPerCycle;
+  final bool continuousScheduling;
+  final int extraFixtureModels;
 
   const FastWatchBenchmarkRequest({
     required this.repoRoot,
@@ -15,5 +17,7 @@ class FastWatchBenchmarkRequest {
     this.incrementalCycles = 1,
     this.repeats = 1,
     this.noiseFilesPerCycle = 0,
+    this.continuousScheduling = false,
+    this.extraFixtureModels = 0,
   });
 }

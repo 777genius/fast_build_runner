@@ -35,6 +35,7 @@ class FastWatchAlphaSession {
     required String sourceEngine,
     required int incrementalCycles,
     required int noiseFilesPerCycle,
+    required bool continuousScheduling,
     required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
@@ -91,7 +92,7 @@ class FastWatchAlphaSession {
     }
 
     final buildSeries = FastBuildSeries(buildPlan);
-    final buildResults = <BuildResult>[];
+    final buildResults = <FastWatchScheduledBuild<BuildResult>>[];
     final scheduler = FastWatchScheduler<BuildResult>(
       onBuild: (updates) =>
           buildSeries.run(updates, recentlyBootstrapped: false),
@@ -101,7 +102,8 @@ class FastWatchAlphaSession {
     _PersistentDartWatchCollector? dartWatchCollector;
     String? rustWatchId;
     int? rustDaemonStartupMilliseconds;
-    StreamSubscription<BuildResult>? resultSubscription;
+    StreamSubscription<FastWatchScheduledBuild<BuildResult>>?
+    resultSubscription;
 
     try {
       final initialStopwatch = Stopwatch()..start();
@@ -156,6 +158,7 @@ class FastWatchAlphaSession {
       final watchCollectionMilliseconds = <int>[];
       final incrementalResults = <FastBuildStepResult>[];
       final resolutionWarnings = <String>[];
+      var submittedBuildBatches = 0;
       _CollectedWatchBatch? lastWatchBatch;
 
       for (var cycleIndex = 0; cycleIndex < incrementalCycles; cycleIndex++) {
@@ -203,25 +206,51 @@ class FastWatchAlphaSession {
               .map((entry) => '${entry.key}:${entry.value}')
               .toList(),
         );
+        if (mergedUpdates.isNotEmpty) {
+          submittedBuildBatches++;
+        }
+        if (continuousScheduling) {
+          unawaited(scheduler.enqueue(mergedUpdates));
+        } else {
+          final expectedBuildCount = buildResults.length + 1;
+          await scheduler.enqueue(mergedUpdates);
+          if (mergedUpdates.isNotEmpty &&
+              buildResults.length < expectedBuildCount) {
+            throw StateError(
+              'Watch alpha scheduler became idle without producing build #$expectedBuildCount.',
+            );
+          }
+          if (mergedUpdates.isNotEmpty) {
+            final scheduledBuild = buildResults[expectedBuildCount - 1];
+            incrementalResults.add(
+              _stepResult(
+                name: 'incremental-${cycleIndex + 1}',
+                elapsedMilliseconds: scheduledBuild.elapsedMilliseconds,
+                buildResult: scheduledBuild.result,
+                generatedFileRelativePath: generatedFileRelativePath,
+              ),
+            );
+          }
+        }
+      }
 
-        final expectedBuildCount = buildResults.length + 1;
-        final incrementalStopwatch = Stopwatch()..start();
-        await scheduler.enqueue(mergedUpdates);
-        incrementalStopwatch.stop();
-        if (buildResults.length < expectedBuildCount) {
-          throw StateError(
-            'Watch alpha scheduler became idle without producing build #$expectedBuildCount.',
+      if (continuousScheduling) {
+        await scheduler.waitForIdle();
+        for (
+          var buildIndex = 0;
+          buildIndex < buildResults.length;
+          buildIndex++
+        ) {
+          final scheduledBuild = buildResults[buildIndex];
+          incrementalResults.add(
+            _stepResult(
+              name: 'incremental-${buildIndex + 1}',
+              elapsedMilliseconds: scheduledBuild.elapsedMilliseconds,
+              buildResult: scheduledBuild.result,
+              generatedFileRelativePath: generatedFileRelativePath,
+            ),
           );
         }
-
-        incrementalResults.add(
-          _stepResult(
-            name: 'incremental-${cycleIndex + 1}',
-            elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
-            buildResult: buildResults[expectedBuildCount - 1],
-            generatedFileRelativePath: generatedFileRelativePath,
-          ),
-        );
       }
 
       final observedEvents = observedEventBatches
@@ -260,8 +289,13 @@ class FastWatchAlphaSession {
             'Watch alpha used the Rust daemon as the filesystem event source.',
           if (incrementalCycles > 1)
             'Watch alpha executed $incrementalCycles incremental cycles before exiting.',
+          if (continuousScheduling)
+            'Watch alpha kept collecting watch batches while builds were in flight.',
           if (noiseFilesPerCycle > 0)
             'Watch alpha injected $noiseFilesPerCycle unrelated noise file(s) on every incremental cycle.',
+          if (continuousScheduling &&
+              buildResults.length < submittedBuildBatches)
+            'Watch alpha coalesced $submittedBuildBatches submitted update batch(es) into ${buildResults.length} build run(s).',
           if (mutateBuildScriptBeforeIncremental)
             'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
           if (simulateDroppedSourceUpdateOnIncremental)
@@ -275,6 +309,10 @@ class FastWatchAlphaSession {
             'Watch alpha completed without observing any filesystem events.',
           if (lastWatchBatch == null || lastWatchBatch.isEmpty)
             'Watch alpha did not collect a non-empty event batch.',
+          if (!mutateBuildScriptBeforeIncremental &&
+              submittedBuildBatches > 0 &&
+              incrementalResults.isEmpty)
+            'Watch alpha submitted non-empty update batches but no incremental builds were observed.',
           if (!mutateBuildScriptBeforeIncremental &&
               incrementalResults.any((step) => !step.generatedFileHasMutation))
             'Watch alpha finished at least one incremental rebuild without the expected generated output mutation.',

@@ -8,6 +8,8 @@ class FastWatchAlphaRequest {
   final String sourceEngine;
   final int incrementalCycles;
   final int noiseFilesPerCycle;
+  final bool continuousScheduling;
+  final int extraFixtureModels;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -19,5 +21,7 @@ class FastWatchAlphaRequest {
     this.sourceEngine = 'dart',
     this.incrementalCycles = 1,
     this.noiseFilesPerCycle = 0,
+    this.continuousScheduling = false,
+    this.extraFixtureModels = 0,
   });
 }

@@ -43,6 +43,8 @@ void main() {
       incrementalCycles: 2,
       repeats: 2,
       noiseFilesPerCycle: 3,
+      continuousScheduling: true,
+      extraFixtureModels: 12,
       dart: FastWatchBenchmarkEngineResult(
         sourceEngine: 'dart',
         elapsedMilliseconds: 1200,
@@ -239,6 +241,8 @@ void main() {
     expect(summary, contains('dart: 1200 ms'));
     expect(summary, contains('repeats: 2'));
     expect(summary, contains('noiseFilesPerCycle: 3'));
+    expect(summary, contains('continuousScheduling: true'));
+    expect(summary, contains('extraFixtureModels: 12'));
     expect(summary, contains('dartSamples: 1200, 1400'));
     expect(summary, contains('rustSamples: 800, 900'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
@@ -257,6 +261,8 @@ void main() {
     expect(summary, contains('rustSpeedupVsDart: 1.50x'));
     expect(markdown, contains('# fast_build_runner watch benchmark'));
     expect(markdown, contains('- noise files per cycle: `3`'));
+    expect(markdown, contains('- continuous scheduling: `true`'));
+    expect(markdown, contains('- extra fixture models: `12`'));
     expect(markdown, contains('- rust incremental build: `80 ms`'));
     expect(markdown, contains('- rust total incremental build: `80 ms`'));
     expect(markdown, contains('- rust watch collection: `260, 280 ms`'));
@@ -283,6 +289,8 @@ void main() {
       final result = FastWatchBenchmarkResult.fromRuns(
         incrementalCycles: 1,
         noiseFilesPerCycle: 0,
+        continuousScheduling: false,
+        extraFixtureModels: 0,
         dartSamples: const [
           FastWatchBenchmarkEngineResult(
             sourceEngine: 'dart',
@@ -401,6 +409,8 @@ void main() {
     final result = FastWatchBenchmarkResult.fromRuns(
       incrementalCycles: 1,
       noiseFilesPerCycle: 0,
+      continuousScheduling: false,
+      extraFixtureModels: 0,
       dartSamples: const [
         FastWatchBenchmarkEngineResult(
           sourceEngine: 'dart',

@@ -76,6 +76,24 @@ class FastWatchAlphaRunner {
         incrementalBuilds: const [],
       );
     }
+    if (request.extraFixtureModels < 0) {
+      return FastWatchAlphaResult(
+        status: 'failure',
+        sourceEngine: request.sourceEngine,
+        upstreamCommit: actualCommit,
+        generatedEntrypointPath: '',
+        runDirectory: '',
+        warnings: const [],
+        errors: const ['Watch alpha requires extraFixtureModels >= 0.'],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: null,
+        incrementalBuild: null,
+        incrementalBuilds: const [],
+      );
+    }
 
     final fixtureTemplateDir = Directory(request.fixtureTemplatePath);
     if (!fixtureTemplateDir.existsSync()) {
@@ -102,6 +120,9 @@ class FastWatchAlphaRunner {
 
     try {
       await _copyDirectory(fixtureTemplateDir, runDirectory);
+      if (request.extraFixtureModels > 0) {
+        _expandFixtureModelSet(runDirectory.path, request.extraFixtureModels);
+      }
       await _prepareFixturePubspec(
         fixturePubspecPath: p.join(runDirectory.path, 'pubspec.yaml'),
         repoRoot: request.repoRoot,
@@ -161,6 +182,7 @@ class FastWatchAlphaRunner {
             '--source-engine=${request.sourceEngine}',
             '--incremental-cycles=${request.incrementalCycles}',
             '--noise-files-per-cycle=${request.noiseFilesPerCycle}',
+            '--continuous-scheduling=${request.continuousScheduling}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
@@ -258,6 +280,58 @@ class FastWatchAlphaRunner {
         await File(entity.path).copy(targetPath);
       }
     }
+  }
+
+  void _expandFixtureModelSet(String projectDirectory, int extraFixtureModels) {
+    final modelsDirectory = Directory(
+      p.join(projectDirectory, 'lib', 'generated_models'),
+    )..createSync(recursive: true);
+    for (var index = 1; index <= extraFixtureModels; index++) {
+      final className = 'GeneratedModel$index';
+      final baseName = _snakeCase(className);
+      final fileName = '$baseName.dart';
+      final file = File(p.join(modelsDirectory.path, fileName));
+      file.writeAsStringSync(_generatedFixtureModelSource(className, baseName));
+    }
+  }
+
+  String _generatedFixtureModelSource(String className, String baseName) =>
+      '''
+import 'package:json_annotation/json_annotation.dart';
+
+part '$baseName.g.dart';
+
+@JsonSerializable()
+class $className {
+  final String id;
+  final int? count;
+  final bool? isEnabled;
+
+  const $className({
+    required this.id,
+    this.count,
+    this.isEnabled,
+  });
+
+  factory $className.fromJson(Map<String, dynamic> json) =>
+      _\$${className}FromJson(json);
+
+  Map<String, dynamic> toJson() => _\$${className}ToJson(this);
+}
+''';
+
+  String _snakeCase(String input) {
+    final buffer = StringBuffer();
+    for (var index = 0; index < input.length; index++) {
+      final char = input[index];
+      final isUppercase =
+          char.toUpperCase() == char && char.toLowerCase() != char;
+      if (isUppercase && index > 0) {
+        buffer.write('_');
+      }
+      buffer.write(char.toLowerCase());
+    }
+    return buffer.toString();
   }
 
   Future<void> _runPubGet(String projectDirectory) async {
