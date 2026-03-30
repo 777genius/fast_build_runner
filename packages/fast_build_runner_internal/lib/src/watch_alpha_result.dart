@@ -2,6 +2,7 @@ import 'bootstrap_spike_result.dart';
 
 class FastWatchAlphaResult {
   final String status;
+  final String sourceEngine;
   final String upstreamCommit;
   final String generatedEntrypointPath;
   final String runDirectory;
@@ -14,6 +15,7 @@ class FastWatchAlphaResult {
 
   const FastWatchAlphaResult({
     required this.status,
+    required this.sourceEngine,
     required this.upstreamCommit,
     required this.generatedEntrypointPath,
     required this.runDirectory,
@@ -30,6 +32,7 @@ class FastWatchAlphaResult {
 
   Map<String, Object?> toJson() => {
     'status': status,
+    'sourceEngine': sourceEngine,
     'upstreamCommit': upstreamCommit,
     'generatedEntrypointPath': generatedEntrypointPath,
     'runDirectory': runDirectory,
@@ -44,6 +47,7 @@ class FastWatchAlphaResult {
   static FastWatchAlphaResult fromJson(Map<String, Object?> json) =>
       FastWatchAlphaResult(
         status: json['status']! as String,
+        sourceEngine: json['sourceEngine']! as String,
         upstreamCommit: json['upstreamCommit']! as String,
         generatedEntrypointPath: json['generatedEntrypointPath']! as String,
         runDirectory: json['runDirectory']! as String,
@@ -51,17 +55,15 @@ class FastWatchAlphaResult {
         errors: List<String>.from(json['errors']! as List),
         observedEvents: List<String>.from(json['observedEvents']! as List),
         mergedUpdates: List<String>.from(json['mergedUpdates']! as List),
-        initialBuild:
-            json['initialBuild'] == null
-                ? null
-                : FastBuildStepResult.fromJson(
-                  Map<String, Object?>.from(json['initialBuild']! as Map),
-                ),
-        incrementalBuild:
-            json['incrementalBuild'] == null
-                ? null
-                : FastBuildStepResult.fromJson(
-                  Map<String, Object?>.from(json['incrementalBuild']! as Map),
-                ),
+        initialBuild: json['initialBuild'] == null
+            ? null
+            : FastBuildStepResult.fromJson(
+                Map<String, Object?>.from(json['initialBuild']! as Map),
+              ),
+        incrementalBuild: json['incrementalBuild'] == null
+            ? null
+            : FastBuildStepResult.fromJson(
+                Map<String, Object?>.from(json['incrementalBuild']! as Map),
+              ),
       );
 }

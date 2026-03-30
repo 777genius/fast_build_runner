@@ -21,6 +21,7 @@ class FastWatchAlphaRunner {
     if (actualCommit != pinnedBuildRunnerCommit) {
       return FastWatchAlphaResult(
         status: 'failure',
+        sourceEngine: request.sourceEngine,
         upstreamCommit: actualCommit,
         generatedEntrypointPath: '',
         runDirectory: '',
@@ -40,6 +41,7 @@ class FastWatchAlphaRunner {
     if (!fixtureTemplateDir.existsSync()) {
       return FastWatchAlphaResult(
         status: 'failure',
+        sourceEngine: request.sourceEngine,
         upstreamCommit: actualCommit,
         generatedEntrypointPath: '',
         runDirectory: '',
@@ -102,7 +104,10 @@ class FastWatchAlphaRunner {
       Directory.current = runDirectory;
       try {
         final childResult = await ParentProcess.runAndSend(
-          script: p.join(runDirectory.path, bootstrapper.entrypointExecutablePath),
+          script: p.join(
+            runDirectory.path,
+            bootstrapper.entrypointExecutablePath,
+          ),
           arguments: [
             '--mode=watch-alpha',
             '--project-dir=${runDirectory.path}',
@@ -110,6 +115,8 @@ class FastWatchAlphaRunner {
             '--source-file=lib/person.dart',
             '--generated-file=lib/person.g.dart',
             '--entrypoint-script=$entrypointPath',
+            '--source-engine=${request.sourceEngine}',
+            '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
           ],
@@ -129,6 +136,7 @@ class FastWatchAlphaRunner {
     } catch (error) {
       return FastWatchAlphaResult(
         status: 'failure',
+        sourceEngine: request.sourceEngine,
         upstreamCommit: actualCommit,
         generatedEntrypointPath: entrypointPath,
         runDirectory: runDirectory.path,
@@ -141,7 +149,9 @@ class FastWatchAlphaRunner {
       );
     } finally {
       if (!request.keepRunDirectory) {
-        final resultFile = File(p.join(runDirectory.path, 'lib', 'person.g.dart'));
+        final resultFile = File(
+          p.join(runDirectory.path, 'lib', 'person.g.dart'),
+        );
         final keepForInspection = !resultFile.existsSync();
         if (!keepForInspection && runDirectory.existsSync()) {
           await runDirectory.delete(recursive: true);
@@ -164,9 +174,16 @@ class FastWatchAlphaRunner {
   }
 
   Future<String> _readGitCommit(String directory) async {
-    final result = await Process.run('git', ['-C', directory, 'rev-parse', 'HEAD']);
+    final result = await Process.run('git', [
+      '-C',
+      directory,
+      'rev-parse',
+      'HEAD',
+    ]);
     if (result.exitCode != 0) {
-      throw StateError('Unable to read git commit in $directory: ${result.stderr}');
+      throw StateError(
+        'Unable to read git commit in $directory: ${result.stderr}',
+      );
     }
     return (result.stdout as String).trim();
   }
@@ -184,7 +201,8 @@ class FastWatchAlphaRunner {
     await for (final entity in source.list(recursive: false)) {
       final targetPath = p.join(destination.path, p.basename(entity.path));
       if (entity is Directory) {
-        final targetDirectory = Directory(targetPath)..createSync(recursive: true);
+        final targetDirectory = Directory(targetPath)
+          ..createSync(recursive: true);
         await _copyDirectory(entity, targetDirectory);
       } else if (entity is File) {
         await File(entity.path).copy(targetPath);
@@ -193,11 +211,10 @@ class FastWatchAlphaRunner {
   }
 
   Future<void> _runPubGet(String projectDirectory) async {
-    final result = await Process.run(
-      Platform.resolvedExecutable,
-      ['pub', 'get'],
-      workingDirectory: projectDirectory,
-    );
+    final result = await Process.run(Platform.resolvedExecutable, [
+      'pub',
+      'get',
+    ], workingDirectory: projectDirectory);
     if (result.exitCode != 0) {
       throw StateError(
         'dart pub get failed in $projectDirectory\n'
@@ -235,7 +252,9 @@ class FastWatchAlphaRunner {
       ..writeln('# fast_build_runner prepared fixture')
       ..writeln('dependency_overrides:')
       ..writeln('  build:')
-      ..writeln("    path: ${p.join(repoRoot, 'research', 'dart-build', 'build')}")
+      ..writeln(
+        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build')}",
+      )
       ..writeln('  build_config:')
       ..writeln(
         "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_config')}",

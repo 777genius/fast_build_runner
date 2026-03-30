@@ -23,6 +23,8 @@ class FastSpikeChildRunner {
     final generatedFile = argMap['generated-file'];
     final packageName = argMap['package-name'];
     final entrypointScript = argMap['entrypoint-script'];
+    final sourceEngine = argMap['source-engine'] ?? 'dart';
+    final rustDaemonDirectory = argMap['rust-daemon-dir'];
     if (projectDirectory == null ||
         sourceFile == null ||
         generatedFile == null ||
@@ -56,60 +58,64 @@ class FastSpikeChildRunner {
     try {
       switch (mode) {
         case 'watch-alpha':
-          result = await FastWatchAlphaSession(
-            builderFactories: builderFactories,
-            upstreamCommit: pinnedBuildRunnerCommit,
-          ).run(
-            packageName: resolvedPackageName,
-            sourceFileRelativePath: resolvedSourceFile,
-            generatedFileRelativePath: resolvedGeneratedFile,
-            generatedEntrypointPath: resolvedEntrypointScript,
-            runDirectory: resolvedProjectDirectory,
-            mutateBuildScriptBeforeIncremental:
-                mutateBuildScriptBeforeIncremental,
-          );
+          result =
+              await FastWatchAlphaSession(
+                builderFactories: builderFactories,
+                upstreamCommit: pinnedBuildRunnerCommit,
+              ).run(
+                sourceEngine: sourceEngine,
+                rustDaemonDirectory: rustDaemonDirectory,
+                packageName: resolvedPackageName,
+                sourceFileRelativePath: resolvedSourceFile,
+                generatedFileRelativePath: resolvedGeneratedFile,
+                generatedEntrypointPath: resolvedEntrypointScript,
+                runDirectory: resolvedProjectDirectory,
+                mutateBuildScriptBeforeIncremental:
+                    mutateBuildScriptBeforeIncremental,
+              );
           break;
         case 'bootstrap-spike':
         default:
-          result = await FastSpikeSession(
-            builderFactories: builderFactories,
-            upstreamCommit: pinnedBuildRunnerCommit,
-          ).run(
-            packageName: resolvedPackageName,
-            sourceFileRelativePath: resolvedSourceFile,
-            generatedFileRelativePath: resolvedGeneratedFile,
-            generatedEntrypointPath: resolvedEntrypointScript,
-            runDirectory: resolvedProjectDirectory,
-            mutateBuildScriptBeforeIncremental:
-                mutateBuildScriptBeforeIncremental,
-          );
+          result =
+              await FastSpikeSession(
+                builderFactories: builderFactories,
+                upstreamCommit: pinnedBuildRunnerCommit,
+              ).run(
+                packageName: resolvedPackageName,
+                sourceFileRelativePath: resolvedSourceFile,
+                generatedFileRelativePath: resolvedGeneratedFile,
+                generatedEntrypointPath: resolvedEntrypointScript,
+                runDirectory: resolvedProjectDirectory,
+                mutateBuildScriptBeforeIncremental:
+                    mutateBuildScriptBeforeIncremental,
+              );
           break;
       }
     } catch (error) {
-      result =
-          mode == 'watch-alpha'
-              ? FastWatchAlphaResult(
-                status: 'failure',
-                upstreamCommit: pinnedBuildRunnerCommit,
-                generatedEntrypointPath: resolvedEntrypointScript,
-                runDirectory: resolvedProjectDirectory,
-                warnings: const [],
-                errors: ['$error'],
-                observedEvents: const [],
-                mergedUpdates: const [],
-                initialBuild: null,
-                incrementalBuild: null,
-              )
-              : FastBootstrapSpikeResult(
-                status: 'failure',
-                upstreamCommit: pinnedBuildRunnerCommit,
-                generatedEntrypointPath: resolvedEntrypointScript,
-                runDirectory: resolvedProjectDirectory,
-                warnings: const [],
-                errors: ['$error'],
-                initialBuild: null,
-                incrementalBuild: null,
-              );
+      result = mode == 'watch-alpha'
+          ? FastWatchAlphaResult(
+              status: 'failure',
+              sourceEngine: sourceEngine,
+              upstreamCommit: pinnedBuildRunnerCommit,
+              generatedEntrypointPath: resolvedEntrypointScript,
+              runDirectory: resolvedProjectDirectory,
+              warnings: const [],
+              errors: ['$error'],
+              observedEvents: const [],
+              mergedUpdates: const [],
+              initialBuild: null,
+              incrementalBuild: null,
+            )
+          : FastBootstrapSpikeResult(
+              status: 'failure',
+              upstreamCommit: pinnedBuildRunnerCommit,
+              generatedEntrypointPath: resolvedEntrypointScript,
+              runDirectory: resolvedProjectDirectory,
+              warnings: const [],
+              errors: ['$error'],
+              initialBuild: null,
+              incrementalBuild: null,
+            );
     }
 
     final exitCode = switch (result) {

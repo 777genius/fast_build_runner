@@ -13,6 +13,7 @@ import 'bootstrap_spike_result.dart';
 import 'fast_build_plan.dart';
 import 'fast_build_series.dart';
 import 'fast_watch_scheduler.dart';
+import 'rust_daemon_client.dart';
 import 'watch_alpha_result.dart';
 import 'watch_update_merger.dart';
 
@@ -26,6 +27,8 @@ class FastWatchAlphaSession {
   });
 
   Future<FastWatchAlphaResult> run({
+    required String sourceEngine,
+    required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedFileRelativePath,
@@ -61,6 +64,7 @@ class FastWatchAlphaSession {
     if (buildPlan.restartIsNeeded) {
       return FastWatchAlphaResult(
         status: 'deferred',
+        sourceEngine: sourceEngine,
         upstreamCommit: upstreamCommit,
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
@@ -78,14 +82,15 @@ class FastWatchAlphaSession {
     final buildSeries = FastBuildSeries(buildPlan);
     final buildResults = <BuildResult>[];
     final scheduler = FastWatchScheduler<BuildResult>(
-      onBuild:
-          (updates) => buildSeries.run(updates, recentlyBootstrapped: false),
+      onBuild: (updates) =>
+          buildSeries.run(updates, recentlyBootstrapped: false),
     );
-    StreamSubscription<WatchEvent>? subscription;
     StreamSubscription<BuildResult>? resultSubscription;
-    Timer? quietTimer;
     try {
-      final initialBuild = await buildSeries.run({}, recentlyBootstrapped: true);
+      final initialBuild = await buildSeries.run(
+        {},
+        recentlyBootstrapped: true,
+      );
       final initialResult = _stepResult(
         name: 'initial',
         buildResult: initialBuild,
@@ -93,50 +98,25 @@ class FastWatchAlphaSession {
       );
 
       final observedEvents = <String>[];
-      final pendingEvents = <WatchEvent>[];
-      final batchCompleter = Completer<List<WatchEvent>>();
       resultSubscription = scheduler.results.listen(buildResults.add);
-      final watcher = DirectoryWatcher(Directory.current.path);
-      subscription = watcher.events.listen((event) {
-        observedEvents.add('${event.type}:${event.path}');
-        if (!_shouldTrackEvent(event, sourceFileRelativePath)) {
-          return;
-        }
-        pendingEvents.add(event);
-        quietTimer?.cancel();
-        quietTimer = Timer(const Duration(milliseconds: 350), () {
-          if (!batchCompleter.isCompleted) {
-            batchCompleter.complete(List<WatchEvent>.from(pendingEvents));
-          }
-        });
-      });
-      await watcher.ready;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
-
-      await _mutateFixtureSource(sourceFileRelativePath);
-      await Future<void>.delayed(const Duration(milliseconds: 50));
-      await _appendSourceBurstComment(sourceFileRelativePath);
-      if (mutateBuildScriptBeforeIncremental) {
-        await Future<void>.delayed(const Duration(milliseconds: 50));
-        await _mutateBuildScript(generatedEntrypointPath);
-      }
-
-      final watchBatch = await batchCompleter.future.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw TimeoutException(
-          'Timed out waiting for a watcher batch for $sourceFileRelativePath.',
-        ),
+      final watchBatch = await _collectWatchBatch(
+        sourceEngine: sourceEngine,
+        rustDaemonDirectory: rustDaemonDirectory,
+        packageName: packageName,
+        sourceFileRelativePath: sourceFileRelativePath,
+        generatedEntrypointPath: generatedEntrypointPath,
+        mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       );
-      final mergedUpdates = _collectChanges(packageName, watchBatch);
+      observedEvents.addAll(watchBatch.observedEvents);
+      final mergedUpdates = watchBatch.mergedUpdates;
       final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
 
       await scheduler.enqueue(mergedUpdates);
-      final incrementalBuild =
-          buildResults.isNotEmpty
-              ? buildResults.last
-              : throw StateError(
-                'Watch alpha scheduler became idle without producing a build result.',
-              );
+      final incrementalBuild = buildResults.isNotEmpty
+          ? buildResults.last
+          : throw StateError(
+              'Watch alpha scheduler became idle without producing a build result.',
+            );
       final incrementalResult = _stepResult(
         name: 'incremental',
         buildResult: incrementalBuild,
@@ -154,15 +134,16 @@ class FastWatchAlphaSession {
 
       return FastWatchAlphaResult(
         status: success ? 'success' : 'failure',
+        sourceEngine: sourceEngine,
         upstreamCommit: upstreamCommit,
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
-        warnings:
-            mutateBuildScriptBeforeIncremental
-                ? const [
-                  'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
-                ]
-                : const [],
+        warnings: [
+          if (sourceEngine == 'rust')
+            'Watch alpha used the Rust daemon as the filesystem event source.',
+          if (mutateBuildScriptBeforeIncremental)
+            'The generated entrypoint was intentionally mutated during watch alpha to verify buildScriptChanged handling.',
+        ],
         errors: [
           ...initialResult.errors,
           ...incrementalResult.errors,
@@ -173,8 +154,7 @@ class FastWatchAlphaSession {
           if (!mutateBuildScriptBeforeIncremental &&
               !incrementalResult.generatedFileHasMutation)
             'Watch alpha incremental rebuild finished without the expected generated output mutation.',
-          if (!mutateBuildScriptBeforeIncremental &&
-              mergedUpdates.length != 1)
+          if (!mutateBuildScriptBeforeIncremental && mergedUpdates.length != 1)
             'Watch alpha expected a merged single-asset update batch for source burst verification.',
           if (mutateBuildScriptBeforeIncremental &&
               incrementalResult.failureType != 'buildScriptChanged')
@@ -188,16 +168,171 @@ class FastWatchAlphaSession {
         incrementalBuild: incrementalResult,
       );
     } finally {
-      quietTimer?.cancel();
-      await subscription?.cancel();
       await resultSubscription?.cancel();
       await scheduler.close();
       await buildSeries.close();
     }
   }
 
-  bool _shouldTrackEvent(WatchEvent event, String sourceFileRelativePath) {
-    final relativePath = _relativeEventPath(event);
+  Future<_CollectedWatchBatch> _collectWatchBatch({
+    required String sourceEngine,
+    required String? rustDaemonDirectory,
+    required String packageName,
+    required String sourceFileRelativePath,
+    required String generatedEntrypointPath,
+    required bool mutateBuildScriptBeforeIncremental,
+  }) {
+    switch (sourceEngine) {
+      case 'rust':
+        return _collectRustWatchBatch(
+          rustDaemonDirectory: rustDaemonDirectory,
+          packageName: packageName,
+          sourceFileRelativePath: sourceFileRelativePath,
+          generatedEntrypointPath: generatedEntrypointPath,
+          mutateBuildScriptBeforeIncremental:
+              mutateBuildScriptBeforeIncremental,
+        );
+      case 'dart':
+      default:
+        return _collectDartWatchBatch(
+          packageName: packageName,
+          sourceFileRelativePath: sourceFileRelativePath,
+          generatedEntrypointPath: generatedEntrypointPath,
+          mutateBuildScriptBeforeIncremental:
+              mutateBuildScriptBeforeIncremental,
+        );
+    }
+  }
+
+  Future<_CollectedWatchBatch> _collectDartWatchBatch({
+    required String packageName,
+    required String sourceFileRelativePath,
+    required String generatedEntrypointPath,
+    required bool mutateBuildScriptBeforeIncremental,
+  }) async {
+    StreamSubscription<WatchEvent>? subscription;
+    Timer? quietTimer;
+    try {
+      final observedEvents = <String>[];
+      final pendingEvents = <WatchEvent>[];
+      final batchCompleter = Completer<List<WatchEvent>>();
+      final watcher = DirectoryWatcher(Directory.current.path);
+      subscription = watcher.events.listen((event) {
+        observedEvents.add('${event.type}:${event.path}');
+        if (!_shouldTrackRelativePath(
+          _relativePath(event.path),
+          sourceFileRelativePath,
+        )) {
+          return;
+        }
+        pendingEvents.add(event);
+        quietTimer?.cancel();
+        quietTimer = Timer(const Duration(milliseconds: 350), () {
+          if (!batchCompleter.isCompleted) {
+            batchCompleter.complete(List<WatchEvent>.from(pendingEvents));
+          }
+        });
+      });
+      await watcher.ready;
+      await Future<void>.delayed(const Duration(milliseconds: 100));
+
+      await _performWatchMutation(
+        sourceFileRelativePath: sourceFileRelativePath,
+        generatedEntrypointPath: generatedEntrypointPath,
+        mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
+      );
+
+      final watchBatch = await batchCompleter.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException(
+          'Timed out waiting for a watcher batch for $sourceFileRelativePath.',
+        ),
+      );
+      return _CollectedWatchBatch(
+        observedEvents: observedEvents,
+        mergedUpdates: _collectDartChanges(packageName, watchBatch),
+        isEmpty: watchBatch.isEmpty,
+      );
+    } finally {
+      quietTimer?.cancel();
+      await subscription?.cancel();
+    }
+  }
+
+  Future<_CollectedWatchBatch> _collectRustWatchBatch({
+    required String? rustDaemonDirectory,
+    required String packageName,
+    required String sourceFileRelativePath,
+    required String generatedEntrypointPath,
+    required bool mutateBuildScriptBeforeIncremental,
+  }) async {
+    if (rustDaemonDirectory == null || rustDaemonDirectory.isEmpty) {
+      throw StateError(
+        'Rust watch alpha requested, but no rust daemon directory was provided.',
+      );
+    }
+
+    final client = RustDaemonClient(daemonDirectory: rustDaemonDirectory);
+    final ping = await client.ping(id: 'watch-alpha-ping');
+    if (ping is RustDaemonErrorResponse) {
+      throw StateError('Rust daemon ping failed: ${ping.message}');
+    }
+
+    final watchFuture = client.watchOnce(
+      id: 'watch-alpha-watch',
+      path: Directory.current.path,
+      debounceMs: 350,
+      timeoutMs: 15000,
+    );
+    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await _performWatchMutation(
+      sourceFileRelativePath: sourceFileRelativePath,
+      generatedEntrypointPath: generatedEntrypointPath,
+      mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
+    );
+
+    final response = await watchFuture;
+    if (response is RustDaemonErrorResponse) {
+      throw StateError('Rust daemon watchOnce failed: ${response.message}');
+    }
+    if (response is! RustDaemonWatchBatchResponse) {
+      throw StateError(
+        'Rust daemon returned an unexpected response type: ${response.runtimeType}',
+      );
+    }
+
+    final observedEvents = response.events
+        .map((event) => '${event.kind}:${event.path}')
+        .toList();
+    return _CollectedWatchBatch(
+      observedEvents: observedEvents,
+      mergedUpdates: _collectRustChanges(
+        packageName,
+        sourceFileRelativePath,
+        response.events,
+      ),
+      isEmpty: response.events.isEmpty,
+    );
+  }
+
+  Future<void> _performWatchMutation({
+    required String sourceFileRelativePath,
+    required String generatedEntrypointPath,
+    required bool mutateBuildScriptBeforeIncremental,
+  }) async {
+    await _mutateFixtureSource(sourceFileRelativePath);
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    await _appendSourceBurstComment(sourceFileRelativePath);
+    if (mutateBuildScriptBeforeIncremental) {
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      await _mutateBuildScript(generatedEntrypointPath);
+    }
+  }
+
+  bool _shouldTrackRelativePath(
+    String? relativePath,
+    String sourceFileRelativePath,
+  ) {
     if (relativePath == null) {
       return false;
     }
@@ -207,18 +342,21 @@ class FastWatchAlphaSession {
   }
 
   String? _relativeEventPath(WatchEvent event) {
-    final absoluteEventPath =
-        p.isAbsolute(event.path)
-            ? event.path
-            : p.join(Directory.current.path, event.path);
-    if (!p.isWithin(Directory.current.path, absoluteEventPath) &&
-        !p.equals(Directory.current.path, absoluteEventPath)) {
-      return null;
-    }
-    return p.relative(absoluteEventPath, from: Directory.current.path);
+    return _relativePath(event.path);
   }
 
-  Map<AssetId, ChangeType> _collectChanges(
+  String? _relativePath(String path) {
+    final absolutePath = p.isAbsolute(path)
+        ? path
+        : p.join(Directory.current.path, path);
+    if (!p.isWithin(Directory.current.path, absolutePath) &&
+        !p.equals(Directory.current.path, absolutePath)) {
+      return null;
+    }
+    return p.relative(absolutePath, from: Directory.current.path);
+  }
+
+  Map<AssetId, ChangeType> _collectDartChanges(
     String packageName,
     List<WatchEvent> changes,
   ) {
@@ -233,6 +371,31 @@ class FastWatchAlphaSession {
     return mergeAssetChangeMaps(batches);
   }
 
+  Map<AssetId, ChangeType> _collectRustChanges(
+    String packageName,
+    String sourceFileRelativePath,
+    List<RustDaemonWatchEvent> changes,
+  ) {
+    final batches = <Map<AssetId, ChangeType>>[];
+    for (final change in changes) {
+      final relativePath = _relativePath(change.path);
+      if (!_shouldTrackRelativePath(relativePath, sourceFileRelativePath)) {
+        continue;
+      }
+      final changeType = switch (change.kind) {
+        'add' => ChangeType.ADD,
+        'remove' => ChangeType.REMOVE,
+        'modify' => ChangeType.MODIFY,
+        _ => null,
+      };
+      if (relativePath == null || changeType == null) {
+        continue;
+      }
+      batches.add({AssetId(packageName, relativePath): changeType});
+    }
+    return mergeAssetChangeMaps(batches);
+  }
+
   FastBuildStepResult _stepResult({
     required String name,
     required BuildResult buildResult,
@@ -241,8 +404,9 @@ class FastWatchAlphaSession {
     final generatedFile = File(
       p.join(Directory.current.path, generatedFileRelativePath),
     );
-    final generatedContent =
-        generatedFile.existsSync() ? generatedFile.readAsStringSync() : '';
+    final generatedContent = generatedFile.existsSync()
+        ? generatedFile.readAsStringSync()
+        : '';
     return FastBuildStepResult(
       name: name,
       status: buildResult.status.name,
@@ -276,7 +440,9 @@ class FastWatchAlphaSession {
       );
     }
     final original = file.readAsStringSync();
-    if (original.contains('// fast_build_runner watch alpha mutated build script marker')) {
+    if (original.contains(
+      '// fast_build_runner watch alpha mutated build script marker',
+    )) {
       return;
     }
     file.writeAsStringSync(
@@ -304,19 +470,30 @@ class FastWatchAlphaSession {
     }
     const constructorMarker = '  const Person({required this.name, this.age});';
     const fieldMarker = '  final int? age;';
-    if (!original.contains(constructorMarker) || !original.contains(fieldMarker)) {
-      throw StateError('Mutation markers not found in watch alpha fixture source.');
+    if (!original.contains(constructorMarker) ||
+        !original.contains(fieldMarker)) {
+      throw StateError(
+        'Mutation markers not found in watch alpha fixture source.',
+      );
     }
-    final updated =
-        original
-            .replaceFirst(
-              constructorMarker,
-              '  const Person({required this.name, this.age, this.nickname});',
-            )
-            .replaceFirst(
-              fieldMarker,
-              '$fieldMarker\n  final String? nickname;',
-            );
+    final updated = original
+        .replaceFirst(
+          constructorMarker,
+          '  const Person({required this.name, this.age, this.nickname});',
+        )
+        .replaceFirst(fieldMarker, '$fieldMarker\n  final String? nickname;');
     file.writeAsStringSync(updated);
   }
+}
+
+class _CollectedWatchBatch {
+  final List<String> observedEvents;
+  final Map<AssetId, ChangeType> mergedUpdates;
+  final bool isEmpty;
+
+  const _CollectedWatchBatch({
+    required this.observedEvents,
+    required this.mergedUpdates,
+    required this.isEmpty,
+  });
 }

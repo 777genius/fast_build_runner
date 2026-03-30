@@ -4,6 +4,7 @@ class FastWatchAlphaRequest {
   final String workDirectoryPath;
   final bool keepRunDirectory;
   final bool mutateBuildScriptBeforeIncremental;
+  final String sourceEngine;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -11,5 +12,6 @@ class FastWatchAlphaRequest {
     required this.workDirectoryPath,
     required this.keepRunDirectory,
     this.mutateBuildScriptBeforeIncremental = false,
+    this.sourceEngine = 'dart',
   });
 }
