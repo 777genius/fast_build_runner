@@ -94,6 +94,8 @@ class FastWatchAlphaSession {
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
     RustDaemonSession? rustClient;
+    _PersistentDartWatchCollector? dartWatchCollector;
+    String? rustWatchId;
     int? rustDaemonStartupMilliseconds;
     StreamSubscription<BuildResult>? resultSubscription;
 
@@ -118,6 +120,32 @@ class FastWatchAlphaSession {
         rustStartupStopwatch.stop();
         rustDaemonStartupMilliseconds =
             rustStartupStopwatch.elapsedMilliseconds;
+        rustWatchId = 'watch-alpha-session';
+        final readyResponse = await rustClient.startWatch(
+          id: 'watch-alpha-start',
+          watchId: rustWatchId,
+          path: Directory.current.path,
+          trackedPaths: _trackedWatchPaths(
+            sourceFileRelativePath: sourceFileRelativePath,
+            generatedEntrypointPath: generatedEntrypointPath,
+          ),
+          warmupMs: 125,
+        );
+        if (readyResponse is RustDaemonErrorResponse) {
+          throw StateError(
+            'Rust daemon startWatch failed: ${readyResponse.message}',
+          );
+        }
+        if (readyResponse is! RustDaemonWatchReadyResponse) {
+          throw StateError(
+            'Rust daemon returned an unexpected startWatch response type: ${readyResponse.runtimeType}',
+          );
+        }
+      } else {
+        dartWatchCollector = await _PersistentDartWatchCollector.start(
+          rootPath: Directory.current.path,
+          sourceFileRelativePath: sourceFileRelativePath,
+        );
       }
       final observedEventBatches = <List<String>>[];
       final mergedUpdateBatches = <List<String>>[];
@@ -130,11 +158,14 @@ class FastWatchAlphaSession {
         final watchCollectionStopwatch = Stopwatch()..start();
         final watchBatch = await _collectWatchBatch(
           sourceEngine: sourceEngine,
+          dartWatchCollector: dartWatchCollector,
           rustClient: rustClient,
+          rustWatchId: rustWatchId,
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
           noiseFilesPerCycle: noiseFilesPerCycle,
+          keepAlive: cycleIndex + 1 < incrementalCycles,
           mutateBuildScriptBeforeIncremental:
               cycleIndex == 0 && mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
@@ -263,6 +294,7 @@ class FastWatchAlphaSession {
         incrementalBuilds: incrementalResults,
       );
     } finally {
+      await dartWatchCollector?.close();
       await rustClient?.close();
       await resultSubscription?.cancel();
       await scheduler.close();
@@ -291,11 +323,14 @@ class FastWatchAlphaSession {
 
   Future<_CollectedWatchBatch> _collectWatchBatch({
     required String sourceEngine,
+    required _PersistentDartWatchCollector? dartWatchCollector,
     required RustDaemonSession? rustClient,
+    required String? rustWatchId,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
     required int noiseFilesPerCycle,
+    required bool keepAlive,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) {
@@ -303,10 +338,12 @@ class FastWatchAlphaSession {
       case 'rust':
         return _collectRustWatchBatch(
           rustClient: rustClient,
+          rustWatchId: rustWatchId,
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
           noiseFilesPerCycle: noiseFilesPerCycle,
+          keepAlive: keepAlive,
           mutateBuildScriptBeforeIncremental:
               mutateBuildScriptBeforeIncremental,
           cycleIndex: cycleIndex,
@@ -314,6 +351,7 @@ class FastWatchAlphaSession {
       case 'dart':
       default:
         return _collectDartWatchBatch(
+          dartWatchCollector: dartWatchCollector,
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
@@ -326,6 +364,7 @@ class FastWatchAlphaSession {
   }
 
   Future<_CollectedWatchBatch> _collectDartWatchBatch({
+    required _PersistentDartWatchCollector? dartWatchCollector,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
@@ -333,63 +372,36 @@ class FastWatchAlphaSession {
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
-    StreamSubscription<WatchEvent>? subscription;
-    Timer? quietTimer;
-    try {
-      final observedEvents = <String>[];
-      final pendingEvents = <WatchEvent>[];
-      final batchCompleter = Completer<List<WatchEvent>>();
-      final watcher = DirectoryWatcher(Directory.current.path);
-      subscription = watcher.events.listen((event) {
-        observedEvents.add('${event.type}:${event.path}');
-        quietTimer?.cancel();
-        quietTimer = Timer(const Duration(milliseconds: 350), () {
-          if (!batchCompleter.isCompleted) {
-            batchCompleter.complete(List<WatchEvent>.from(pendingEvents));
-          }
-        });
-        if (!_shouldTrackRelativePath(
-          _relativePath(event.path),
-          sourceFileRelativePath,
-        )) {
-          return;
-        }
-        pendingEvents.add(event);
-      });
-      await watcher.ready;
-      await Future<void>.delayed(const Duration(milliseconds: 100));
+    if (dartWatchCollector == null) {
+      throw StateError(
+        'Dart watch alpha requested, but no persistent dart watch collector was available.',
+      );
+    }
 
-      await _performWatchMutation(
+    final watchBatch = await dartWatchCollector.collectNextBatch(
+      mutate: () => _performWatchMutation(
         sourceFileRelativePath: sourceFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
         noiseFilesPerCycle: noiseFilesPerCycle,
         mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
         cycleIndex: cycleIndex,
-      );
-
-      final watchBatch = await batchCompleter.future.timeout(
-        const Duration(seconds: 15),
-        onTimeout: () => throw TimeoutException(
-          'Timed out waiting for a watcher batch for $sourceFileRelativePath on cycle ${cycleIndex + 1}.',
-        ),
-      );
-      return _CollectedWatchBatch(
-        observedEvents: observedEvents,
-        mergedUpdates: _collectDartChanges(packageName, watchBatch),
-        isEmpty: watchBatch.isEmpty,
-      );
-    } finally {
-      quietTimer?.cancel();
-      await subscription?.cancel();
-    }
+      ),
+    );
+    return _CollectedWatchBatch(
+      observedEvents: watchBatch.observedEvents,
+      mergedUpdates: _collectDartChanges(packageName, watchBatch.watchEvents),
+      isEmpty: watchBatch.watchEvents.isEmpty,
+    );
   }
 
   Future<_CollectedWatchBatch> _collectRustWatchBatch({
     required RustDaemonSession? rustClient,
+    required String? rustWatchId,
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
     required int noiseFilesPerCycle,
+    required bool keepAlive,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
@@ -398,26 +410,9 @@ class FastWatchAlphaSession {
         'Rust watch alpha requested, but no prepared rust client was available.',
       );
     }
-
-    final watchId = 'watch-alpha-${cycleIndex + 1}';
-    final readyResponse = await rustClient.startWatch(
-      id: 'watch-alpha-start-${cycleIndex + 1}',
-      watchId: watchId,
-      path: Directory.current.path,
-      trackedPaths: _trackedWatchPaths(
-        sourceFileRelativePath: sourceFileRelativePath,
-        generatedEntrypointPath: generatedEntrypointPath,
-      ),
-      warmupMs: 125,
-    );
-    if (readyResponse is RustDaemonErrorResponse) {
+    if (rustWatchId == null || rustWatchId.isEmpty) {
       throw StateError(
-        'Rust daemon startWatch failed: ${readyResponse.message}',
-      );
-    }
-    if (readyResponse is! RustDaemonWatchReadyResponse) {
-      throw StateError(
-        'Rust daemon returned an unexpected startWatch response type: ${readyResponse.runtimeType}',
+        'Rust watch alpha requested, but no active rust watch id was available.',
       );
     }
     await _performWatchMutation(
@@ -430,9 +425,10 @@ class FastWatchAlphaSession {
 
     final response = await rustClient.finishWatch(
       id: 'watch-alpha-finish-${cycleIndex + 1}',
-      watchId: watchId,
+      watchId: rustWatchId,
       debounceMs: 350,
       timeoutMs: 15000,
+      keepAlive: keepAlive,
     );
     if (response is RustDaemonErrorResponse) {
       throw StateError('Rust daemon watchOnce failed: ${response.message}');
@@ -721,4 +717,127 @@ class _FieldMutation {
   final String type;
 
   const _FieldMutation({required this.name, required this.type});
+}
+
+class _PersistentDartWatchCollector {
+  final String rootPath;
+  final String sourceFileRelativePath;
+  final StreamSubscription<WatchEvent> _subscription;
+
+  Timer? _quietTimer;
+  Completer<_DartWatchBatch>? _batchCompleter;
+  final List<String> _observedEvents = [];
+  final List<WatchEvent> _pendingEvents = [];
+
+  _PersistentDartWatchCollector._({
+    required this.rootPath,
+    required this.sourceFileRelativePath,
+    required StreamSubscription<WatchEvent> subscription,
+  }) : _subscription = subscription;
+
+  static Future<_PersistentDartWatchCollector> start({
+    required String rootPath,
+    required String sourceFileRelativePath,
+  }) async {
+    final watcher = DirectoryWatcher(rootPath);
+    late final _PersistentDartWatchCollector collector;
+    final subscription = watcher.events.listen((event) {
+      collector._onEvent(event);
+    });
+    collector = _PersistentDartWatchCollector._(
+      rootPath: rootPath,
+      sourceFileRelativePath: sourceFileRelativePath,
+      subscription: subscription,
+    );
+    await watcher.ready;
+    await Future<void>.delayed(const Duration(milliseconds: 100));
+    return collector;
+  }
+
+  Future<_DartWatchBatch> collectNextBatch({
+    required Future<void> Function() mutate,
+  }) async {
+    if (_batchCompleter != null) {
+      throw StateError('A dart watch batch is already active.');
+    }
+    _observedEvents.clear();
+    _pendingEvents.clear();
+    _batchCompleter = Completer<_DartWatchBatch>();
+    await mutate();
+    try {
+      return await _batchCompleter!.future.timeout(
+        const Duration(seconds: 15),
+        onTimeout: () => throw TimeoutException(
+          'Timed out waiting for a persistent dart watcher batch for $sourceFileRelativePath.',
+        ),
+      );
+    } finally {
+      _quietTimer?.cancel();
+      _quietTimer = null;
+      _batchCompleter = null;
+    }
+  }
+
+  Future<void> close() async {
+    _quietTimer?.cancel();
+    await _subscription.cancel();
+  }
+
+  void _onEvent(WatchEvent event) {
+    final batchCompleter = _batchCompleter;
+    if (batchCompleter == null || batchCompleter.isCompleted) {
+      return;
+    }
+
+    _observedEvents.add('${event.type}:${event.path}');
+    _quietTimer?.cancel();
+    _quietTimer = Timer(const Duration(milliseconds: 350), () {
+      if (batchCompleter.isCompleted) {
+        return;
+      }
+      batchCompleter.complete(
+        _DartWatchBatch(
+          observedEvents: List<String>.from(_observedEvents),
+          watchEvents: List<WatchEvent>.from(_pendingEvents),
+        ),
+      );
+    });
+
+    final relativePath = _relativePathFromRoot(rootPath, event.path);
+    if (!_shouldTrackRelativePath(relativePath, sourceFileRelativePath)) {
+      return;
+    }
+    _pendingEvents.add(event);
+  }
+
+  static String? _relativePathFromRoot(String rootPath, String path) {
+    final absolutePath = p.isAbsolute(path) ? path : p.join(rootPath, path);
+    if (!p.isWithin(rootPath, absolutePath) &&
+        !p.equals(rootPath, absolutePath)) {
+      return null;
+    }
+    return p.relative(absolutePath, from: rootPath);
+  }
+
+  static bool _shouldTrackRelativePath(
+    String? relativePath,
+    String sourceFileRelativePath,
+  ) {
+    if (relativePath == null) {
+      return false;
+    }
+    return relativePath == sourceFileRelativePath ||
+        relativePath == 'build.yaml' ||
+        relativePath.startsWith('.dart_tool/build/entrypoint/');
+  }
+}
+
+class _DartWatchBatch {
+  final List<String> observedEvents;
+  final List<WatchEvent> watchEvents;
+
+  const _DartWatchBatch({
+    required this.observedEvents,
+    required this.watchEvents,
+  });
 }

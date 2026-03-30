@@ -40,6 +40,8 @@ pub enum DaemonRequest {
         debounce_ms: Option<u64>,
         #[serde(default)]
         timeout_ms: Option<u64>,
+        #[serde(default)]
+        keep_alive: Option<bool>,
     },
 }
 
@@ -93,7 +95,7 @@ impl DaemonServer {
         match request {
             DaemonRequest::Ping { id } => DaemonResponse::Pong {
                 id,
-                protocol_version: 2,
+                protocol_version: 3,
                 daemon: "fast_build_runner_daemon",
             },
             DaemonRequest::WatchOnce {
@@ -143,27 +145,53 @@ impl DaemonServer {
                 watch_id,
                 debounce_ms,
                 timeout_ms,
+                keep_alive,
             } => {
-                let Some(active_watch) = self.active_watches.remove(&watch_id) else {
-                    return DaemonResponse::Error {
-                        id: Some(id),
-                        message: format!("Unknown active watch id: {watch_id}"),
+                let keep_alive = keep_alive.unwrap_or(false);
+                if keep_alive {
+                    let Some(active_watch) = self.active_watches.get_mut(&watch_id) else {
+                        return DaemonResponse::Error {
+                            id: Some(id),
+                            message: format!("Unknown active watch id: {watch_id}"),
+                        };
                     };
-                };
-                let root = active_watch.root.clone();
-                match active_watch.finish(debounce_ms, timeout_ms) {
-                    Ok(events) => DaemonResponse::WatchBatch {
-                        id,
-                        watch_id: Some(watch_id),
-                        status: "ok",
-                        root,
-                        events,
-                        warnings: vec![],
-                    },
-                    Err(error) => DaemonResponse::Error {
-                        id: Some(id),
-                        message: format!("{error:#}"),
-                    },
+                    let root = active_watch.root.clone();
+                    match active_watch.next_batch(debounce_ms, timeout_ms) {
+                        Ok(events) => DaemonResponse::WatchBatch {
+                            id,
+                            watch_id: Some(watch_id),
+                            status: "ok",
+                            root,
+                            events,
+                            warnings: vec![],
+                        },
+                        Err(error) => DaemonResponse::Error {
+                            id: Some(id),
+                            message: format!("{error:#}"),
+                        },
+                    }
+                } else {
+                    let Some(mut active_watch) = self.active_watches.remove(&watch_id) else {
+                        return DaemonResponse::Error {
+                            id: Some(id),
+                            message: format!("Unknown active watch id: {watch_id}"),
+                        };
+                    };
+                    let root = active_watch.root.clone();
+                    match active_watch.next_batch(debounce_ms, timeout_ms) {
+                        Ok(events) => DaemonResponse::WatchBatch {
+                            id,
+                            watch_id: Some(watch_id),
+                            status: "ok",
+                            root,
+                            events,
+                            warnings: vec![],
+                        },
+                        Err(error) => DaemonResponse::Error {
+                            id: Some(id),
+                            message: format!("{error:#}"),
+                        },
+                    }
                 }
             }
         }
@@ -329,8 +357,8 @@ impl ActiveWatch {
         })
     }
 
-    fn finish(
-        self,
+    fn next_batch(
+        &mut self,
         debounce_ms: Option<u64>,
         timeout_ms: Option<u64>,
     ) -> Result<Vec<WatchEventPayload>> {

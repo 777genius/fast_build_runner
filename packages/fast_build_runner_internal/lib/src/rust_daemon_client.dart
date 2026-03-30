@@ -50,6 +50,7 @@ class RustDaemonClient {
     required String watchId,
     int debounceMs = 350,
     int timeoutMs = 15000,
+    bool keepAlive = false,
   }) {
     return _send({
       'command': 'finish_watch',
@@ -57,6 +58,7 @@ class RustDaemonClient {
       'watch_id': watchId,
       'debounce_ms': debounceMs,
       'timeout_ms': timeoutMs,
+      'keep_alive': keepAlive,
     });
   }
 
@@ -99,10 +101,7 @@ class RustDaemonSession {
     required String daemonDirectory,
   }) async {
     final executablePath = await _resolveExecutablePath(daemonDirectory);
-    final process = await Process.start(
-      executablePath,
-      const [],
-    );
+    final process = await Process.start(executablePath, const []);
     final stdoutIterator = StreamIterator<String>(
       process.stdout.transform(utf8.decoder).transform(const LineSplitter()),
     );
@@ -121,24 +120,23 @@ class RustDaemonSession {
   }
 
   static Future<String> _resolveExecutablePath(String daemonDirectory) async {
-    final executableName =
-        Platform.isWindows
-            ? '$_daemonExecutableBaseName.exe'
-            : _daemonExecutableBaseName;
+    final executableName = Platform.isWindows
+        ? '$_daemonExecutableBaseName.exe'
+        : _daemonExecutableBaseName;
     final executablePath =
         '$daemonDirectory${Platform.pathSeparator}target'
         '${Platform.pathSeparator}debug'
         '${Platform.pathSeparator}$executableName';
     final executable = File(executablePath);
-    if (executable.existsSync() && !_requiresRebuild(daemonDirectory, executable)) {
+    if (executable.existsSync() &&
+        !_requiresRebuild(daemonDirectory, executable)) {
       return executable.path;
     }
 
-    final buildResult = await Process.run(
-      'cargo',
-      const ['build', '--quiet'],
-      workingDirectory: daemonDirectory,
-    );
+    final buildResult = await Process.run('cargo', const [
+      'build',
+      '--quiet',
+    ], workingDirectory: daemonDirectory);
     if (buildResult.exitCode != 0) {
       throw StateError(
         'Failed to build Rust daemon binary in $daemonDirectory\n'
@@ -159,7 +157,9 @@ class RustDaemonSession {
       return true;
     }
     final executableModified = executable.statSync().modified;
-    final srcDirectory = Directory('$daemonDirectory${Platform.pathSeparator}src');
+    final srcDirectory = Directory(
+      '$daemonDirectory${Platform.pathSeparator}src',
+    );
     if (srcDirectory.existsSync()) {
       for (final entity in srcDirectory.listSync(recursive: true)) {
         if (entity is File &&
@@ -173,7 +173,8 @@ class RustDaemonSession {
       File('$daemonDirectory${Platform.pathSeparator}Cargo.lock'),
     ];
     for (final file in manifestFiles) {
-      if (file.existsSync() && file.statSync().modified.isAfter(executableModified)) {
+      if (file.existsSync() &&
+          file.statSync().modified.isAfter(executableModified)) {
         return true;
       }
     }
@@ -223,6 +224,7 @@ class RustDaemonSession {
     required String watchId,
     int debounceMs = 350,
     int timeoutMs = 15000,
+    bool keepAlive = false,
   }) {
     return send({
       'command': 'finish_watch',
@@ -230,6 +232,7 @@ class RustDaemonSession {
       'watch_id': watchId,
       'debounce_ms': debounceMs,
       'timeout_ms': timeoutMs,
+      'keep_alive': keepAlive,
     });
   }
 
@@ -387,10 +390,8 @@ class RustDaemonErrorResponse extends RustDaemonResponse {
   final String? id;
   final String message;
 
-  const RustDaemonErrorResponse({
-    required this.id,
-    required this.message,
-  }) : super('error');
+  const RustDaemonErrorResponse({required this.id, required this.message})
+    : super('error');
 }
 
 class RustDaemonWatchEvent {
