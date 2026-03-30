@@ -225,7 +225,12 @@ fn collect_existing_paths_recursive(root: &Path, paths: &mut BTreeMap<String, bo
     if !root.exists() {
         return Ok(());
     }
-    paths.insert(root.display().to_string(), root.is_dir());
+    let normalized = root
+        .canonicalize()
+        .unwrap_or_else(|_| root.to_path_buf())
+        .display()
+        .to_string();
+    paths.insert(normalized, root.is_dir());
     if root.is_dir() {
         for entry in fs::read_dir(root)
             .with_context(|| format!("Failed to read directory {}", root.display()))?
