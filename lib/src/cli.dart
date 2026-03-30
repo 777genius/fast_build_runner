@@ -18,6 +18,8 @@ class FastBuildRunnerCli {
         return _runSpikeBootstrap(rest);
       case 'spike-watch':
         return _runSpikeWatch(rest);
+      case 'benchmark-watch':
+        return _runBenchmarkWatch(rest);
       case 'help':
       case '--help':
       case '-h':
@@ -133,6 +135,49 @@ class FastBuildRunnerCli {
     return result.exitCode;
   }
 
+  Future<int> _runBenchmarkWatch(List<String> args) async {
+    final parser = ArgParser()
+      ..addOption(
+        'fixture',
+        defaultsTo: 'fixtures/json_serializable_fixture',
+        help: 'Path to the fixture template relative to the repo root.',
+      )
+      ..addOption(
+        'work-dir',
+        defaultsTo: '.dart_tool/fast_build_runner/watch_benchmark',
+        help: 'Directory used for benchmark fixture runs.',
+      )
+      ..addFlag(
+        'keep-run-dir',
+        negatable: false,
+        help: 'Keep copied fixture directories after execution.',
+      )
+      ..addOption(
+        'incremental-cycles',
+        defaultsTo: '1',
+        help: 'Number of incremental cycles per engine.',
+      );
+
+    final parsed = parser.parse(args);
+    final repoRoot = _resolveRepoRoot();
+    final request = FastWatchBenchmarkRequest(
+      repoRoot: repoRoot.path,
+      fixtureTemplatePath: _resolveFromRoot(
+        repoRoot,
+        parsed['fixture'] as String,
+      ),
+      workDirectoryPath: _resolveFromRoot(
+        repoRoot,
+        parsed['work-dir'] as String,
+      ),
+      keepRunDirectory: parsed['keep-run-dir'] as bool,
+      incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
+    );
+    final result = await FastWatchBenchmarkRunner().run(request);
+    stdout.writeln(const JsonEncoder.withIndent('  ').convert(result.toJson()));
+    return result.exitCode;
+  }
+
   Directory _resolveRepoRoot() {
     final scriptFile = File.fromUri(Platform.script);
     return scriptFile.parent.parent;
@@ -155,6 +200,9 @@ class FastBuildRunnerCli {
     );
     stdout.writeln(
       '  spike-watch       Run a finite watch-alpha proof against the bundled fixture.',
+    );
+    stdout.writeln(
+      '  benchmark-watch   Compare dart and rust source engines on the bundled watch fixture.',
     );
   }
 }
