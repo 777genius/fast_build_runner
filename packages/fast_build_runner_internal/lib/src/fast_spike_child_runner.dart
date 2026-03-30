@@ -38,25 +38,30 @@ class FastSpikeChildRunner {
       );
     }
 
-    Directory.current = projectDirectory;
+    final resolvedProjectDirectory = projectDirectory;
+    final resolvedSourceFile = sourceFile;
+    final resolvedGeneratedFile = generatedFile;
+    final resolvedPackageName = packageName;
+
+    Directory.current = resolvedProjectDirectory;
     FastBootstrapSpikeResult result;
     try {
       result = await FastSpikeSession(
         builderFactories: builderFactories,
         upstreamCommit: pinnedBuildRunnerCommit,
       ).run(
-        packageName: packageName,
-        sourceFileRelativePath: sourceFile,
-        generatedFileRelativePath: generatedFile,
+        packageName: resolvedPackageName,
+        sourceFileRelativePath: resolvedSourceFile,
+        generatedFileRelativePath: resolvedGeneratedFile,
         generatedEntrypointPath: Platform.script.toFilePath(),
-        runDirectory: projectDirectory,
+        runDirectory: resolvedProjectDirectory,
       );
     } catch (error) {
       result = FastBootstrapSpikeResult(
         status: 'failure',
         upstreamCommit: pinnedBuildRunnerCommit,
         generatedEntrypointPath: Platform.script.toFilePath(),
-        runDirectory: projectDirectory,
+        runDirectory: resolvedProjectDirectory,
         warnings: const [],
         errors: ['$error'],
         initialBuild: null,

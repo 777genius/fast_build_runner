@@ -58,6 +58,10 @@ class FastBootstrapSpikeRunner {
 
     try {
       await _copyDirectory(fixtureTemplateDir, runDirectory);
+      await _prepareFixturePubspec(
+        fixturePubspecPath: p.join(runDirectory.path, 'pubspec.yaml'),
+        repoRoot: request.repoRoot,
+      );
       await _runPubGet(runDirectory.path);
 
       final packageName = _readPackageName(
@@ -71,7 +75,8 @@ class FastBootstrapSpikeRunner {
           'packages',
           'fast_build_runner_internal',
           'lib',
-          'fast_build_runner_internal.dart',
+          'src',
+          'fast_spike_child_runner.dart',
         ),
         upstreamCommit: actualCommit,
       );
@@ -95,6 +100,11 @@ class FastBootstrapSpikeRunner {
           message: parentMessage,
           jitVmArgs: const [],
         );
+        if (childResult.message.trim().isEmpty) {
+          throw StateError(
+            'Child process exited with code ${childResult.exitCode} without a result payload.',
+          );
+        }
         final decoded =
             jsonDecode(childResult.message) as Map<String, Object?>;
         return FastBootstrapSpikeResult.fromJson(decoded);
@@ -181,5 +191,42 @@ class FastBootstrapSpikeRunner {
       throw StateError('Fixture pubspec is missing a valid package name.');
     }
     return name;
+  }
+
+  Future<void> _prepareFixturePubspec({
+    required String fixturePubspecPath,
+    required String repoRoot,
+  }) async {
+    final pubspecFile = File(fixturePubspecPath);
+    final original = pubspecFile.readAsStringSync();
+    if (original.contains('fast_build_runner prepared fixture')) {
+      return;
+    }
+    final devDependenciesPatched = original.replaceFirst(
+      RegExp(r'^dev_dependencies:\n', multiLine: true),
+      'dev_dependencies:\n  build_runner: any\n',
+    );
+    final patched = StringBuffer()
+      ..writeln(devDependenciesPatched.trimRight())
+      ..writeln()
+      ..writeln('# fast_build_runner prepared fixture')
+      ..writeln('dependency_overrides:')
+      ..writeln('  build:')
+      ..writeln(
+        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build')}",
+      )
+      ..writeln('  build_config:')
+      ..writeln(
+        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_config')}",
+      )
+      ..writeln('  build_daemon:')
+      ..writeln(
+        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_daemon')}",
+      )
+      ..writeln('  build_runner:')
+      ..writeln(
+        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_runner')}",
+      );
+    pubspecFile.writeAsStringSync(patched.toString());
   }
 }

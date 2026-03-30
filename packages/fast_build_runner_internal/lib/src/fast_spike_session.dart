@@ -148,17 +148,25 @@ class FastSpikeSession {
   Future<void> _mutateFixtureSource(String sourceFileRelativePath) async {
     final file = File(p.join(Directory.current.path, sourceFileRelativePath));
     final original = file.readAsStringSync();
-    if (original.contains('final String? nickname;')) {
+    if (original.contains('this.nickname') &&
+        original.contains('final String? nickname;')) {
       return;
     }
-    const marker = '  final int? age;';
-    if (!original.contains(marker)) {
-      throw StateError('Mutation marker not found in fixture source.');
+    const constructorMarker = '  const Person({required this.name, this.age});';
+    const fieldMarker = '  final int? age;';
+    if (!original.contains(constructorMarker) || !original.contains(fieldMarker)) {
+      throw StateError('Mutation markers not found in fixture source.');
     }
-    final updated = original.replaceFirst(
-      marker,
-      '$marker\n  final String? nickname;',
-    );
+    final updated =
+        original
+            .replaceFirst(
+              constructorMarker,
+              '  const Person({required this.name, this.age, this.nickname});',
+            )
+            .replaceFirst(
+              fieldMarker,
+              '$fieldMarker\n  final String? nickname;',
+            );
     file.writeAsStringSync(updated);
   }
 }
