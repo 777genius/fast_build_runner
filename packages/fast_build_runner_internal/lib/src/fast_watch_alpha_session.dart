@@ -391,10 +391,14 @@ class FastWatchAlphaSession {
     final watchFuture = rustClient.watchOnce(
       id: 'watch-alpha-watch-${cycleIndex + 1}',
       path: Directory.current.path,
+      trackedPaths: _trackedWatchPaths(
+        sourceFileRelativePath: sourceFileRelativePath,
+        generatedEntrypointPath: generatedEntrypointPath,
+      ),
       debounceMs: 350,
       timeoutMs: 15000,
     );
-    await Future<void>.delayed(const Duration(milliseconds: 750));
+    await Future<void>.delayed(const Duration(milliseconds: 350));
     await _performWatchMutation(
       sourceFileRelativePath: sourceFileRelativePath,
       generatedEntrypointPath: generatedEntrypointPath,
@@ -515,6 +519,17 @@ class FastWatchAlphaSession {
     final mutated = Map<AssetId, ChangeType>.from(updates);
     mutated.remove(expectedSourceAssetId);
     return mutated;
+  }
+
+  List<String> _trackedWatchPaths({
+    required String sourceFileRelativePath,
+    required String generatedEntrypointPath,
+  }) {
+    return [
+      p.join(Directory.current.path, sourceFileRelativePath),
+      p.join(Directory.current.path, 'build.yaml'),
+      generatedEntrypointPath,
+    ];
   }
 
   FastBuildStepResult _stepResult({

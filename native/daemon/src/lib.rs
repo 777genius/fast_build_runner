@@ -1,4 +1,4 @@
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, BTreeSet};
 use std::fs;
 use std::path::{Path, PathBuf};
 use std::sync::mpsc;
@@ -17,6 +17,8 @@ pub enum DaemonRequest {
     WatchOnce {
         id: String,
         path: String,
+        #[serde(default)]
+        tracked_paths: Option<Vec<String>>,
         #[serde(default)]
         debounce_ms: Option<u64>,
         #[serde(default)]
@@ -61,9 +63,10 @@ pub fn handle_request(request: DaemonRequest) -> DaemonResponse {
         DaemonRequest::WatchOnce {
             id,
             path,
+            tracked_paths,
             debounce_ms,
             timeout_ms,
-        } => match watch_once(&path, debounce_ms, timeout_ms) {
+        } => match watch_once(&path, tracked_paths, debounce_ms, timeout_ms) {
             Ok(events) => DaemonResponse::WatchBatch {
                 id,
                 status: "ok",
@@ -81,6 +84,7 @@ pub fn handle_request(request: DaemonRequest) -> DaemonResponse {
 
 pub fn watch_once(
     root: &str,
+    tracked_paths: Option<Vec<String>>,
     debounce_ms: Option<u64>,
     timeout_ms: Option<u64>,
 ) -> Result<Vec<WatchEventPayload>> {
@@ -95,7 +99,14 @@ pub fn watch_once(
     let debounce = Duration::from_millis(debounce_ms.unwrap_or(350));
     let timeout = Duration::from_millis(timeout_ms.unwrap_or(15_000));
     let warmup = Duration::from_millis(250);
-    let existing_paths = collect_existing_paths(&root_path)?;
+    let canonical_root = root_path
+        .canonicalize()
+        .with_context(|| format!("Failed to canonicalize watch root {}", root_path.display()))?;
+    let tracked_paths = normalize_tracked_paths(&canonical_root, tracked_paths)?;
+    let tracked_path_filter = tracked_paths
+        .as_ref()
+        .map(|entries| entries.keys().cloned().collect::<BTreeSet<_>>());
+    let existing_paths = tracked_paths.unwrap_or_else(|| collect_existing_paths(&canonical_root));
     let (tx, rx) = mpsc::channel();
 
     let mut watcher = recommended_watcher(move |result| {
@@ -134,7 +145,12 @@ pub fn watch_once(
                 }
                 first_event_seen = true;
                 last_event_at = Some(Instant::now());
-                collected.extend(normalize_event_batch(&root_path, &existing_paths, &event));
+                collected.extend(normalize_event_batch(
+                    &canonical_root,
+                    tracked_path_filter.as_ref(),
+                    &existing_paths,
+                    &event,
+                ));
             }
             Ok(Err(error)) => return Err(anyhow!("Watcher reported an error: {error}")),
             Err(mpsc::RecvTimeoutError::Timeout) => {
@@ -159,15 +175,21 @@ pub fn watch_once(
 }
 
 fn normalize_event_batch(
-    root: &Path,
+    canonical_root: &Path,
+    tracked_path_filter: Option<&BTreeSet<String>>,
     existing_paths: &BTreeMap<String, bool>,
     event: &Event,
 ) -> Vec<WatchEventPayload> {
     event
         .paths
         .iter()
-        .filter_map(|path| normalize_watch_path(root, path).ok())
-        .filter(|path| path != &root.display().to_string())
+        .filter_map(|path| normalize_watch_path(canonical_root, path).ok())
+        .filter(|path| path != &canonical_root.display().to_string())
+        .filter(|path| {
+            tracked_path_filter
+                .map(|filter| filter.contains(path))
+                .unwrap_or(true)
+        })
         .map(|path| WatchEventPayload {
             kind: normalize_kind(classify_event_kind(&event.kind), &path, existing_paths),
             path,
@@ -175,15 +197,12 @@ fn normalize_event_batch(
         .collect()
 }
 
-fn normalize_watch_path(root: &Path, path: &Path) -> Result<String> {
+fn normalize_watch_path(canonical_root: &Path, path: &Path) -> Result<String> {
     let absolute = if path.is_absolute() {
         path.to_path_buf()
     } else {
-        root.join(path)
+        canonical_root.join(path)
     };
-    let canonical_root = root
-        .canonicalize()
-        .with_context(|| format!("Failed to canonicalize watch root {}", root.display()))?;
     if absolute.starts_with(&canonical_root) {
         Ok(absolute.display().to_string())
     } else {
@@ -215,10 +234,36 @@ fn normalize_kind(
     }
 }
 
-fn collect_existing_paths(root: &Path) -> Result<BTreeMap<String, bool>> {
+fn normalize_tracked_paths(
+    canonical_root: &Path,
+    tracked_paths: Option<Vec<String>>,
+) -> Result<Option<BTreeMap<String, bool>>> {
+    let Some(tracked_paths) = tracked_paths else {
+        return Ok(None);
+    };
+    let mut normalized = BTreeMap::new();
+    for tracked_path in tracked_paths {
+        let tracked_path_buf = PathBuf::from(&tracked_path);
+        let absolute = if tracked_path_buf.is_absolute() {
+            tracked_path_buf
+        } else {
+            canonical_root.join(tracked_path_buf)
+        };
+        if !absolute.starts_with(canonical_root) {
+            return Err(anyhow!(
+                "Tracked path is outside of the watch root: {}",
+                absolute.display()
+            ));
+        }
+        normalized.insert(absolute.display().to_string(), absolute.exists());
+    }
+    Ok(Some(normalized))
+}
+
+fn collect_existing_paths(root: &Path) -> BTreeMap<String, bool> {
     let mut paths = BTreeMap::new();
-    collect_existing_paths_recursive(root, &mut paths)?;
-    Ok(paths)
+    let _ = collect_existing_paths_recursive(root, &mut paths);
+    paths
 }
 
 fn collect_existing_paths_recursive(root: &Path, paths: &mut BTreeMap<String, bool>) -> Result<()> {

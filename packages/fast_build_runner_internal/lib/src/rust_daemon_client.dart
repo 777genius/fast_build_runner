@@ -14,6 +14,7 @@ class RustDaemonClient {
   Future<RustDaemonResponse> watchOnce({
     required String id,
     required String path,
+    List<String>? trackedPaths,
     int debounceMs = 350,
     int timeoutMs = 15000,
   }) {
@@ -21,6 +22,7 @@ class RustDaemonClient {
       'command': 'watch_once',
       'id': id,
       'path': path,
+      'tracked_paths': trackedPaths,
       'debounce_ms': debounceMs,
       'timeout_ms': timeoutMs,
     });
@@ -127,6 +129,7 @@ class RustDaemonSession {
   Future<RustDaemonResponse> watchOnce({
     required String id,
     required String path,
+    List<String>? trackedPaths,
     int debounceMs = 350,
     int timeoutMs = 15000,
   }) {
@@ -134,6 +137,7 @@ class RustDaemonSession {
       'command': 'watch_once',
       'id': id,
       'path': path,
+      'tracked_paths': trackedPaths,
       'debounce_ms': debounceMs,
       'timeout_ms': timeoutMs,
     });
