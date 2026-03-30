@@ -31,6 +31,8 @@ class FastSpikeChildRunner {
     final continuousScheduling = argMap['continuous-scheduling'] == 'true';
     final settleBuildDelayMs =
         int.tryParse(argMap['settle-build-delay-ms'] ?? '') ?? 0;
+    final trustBuildScriptFreshness =
+        argMap['trust-build-script-freshness'] == 'true';
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
     if (projectDirectory == null ||
         sourceFile == null ||
@@ -77,6 +79,7 @@ class FastSpikeChildRunner {
                 noiseFilesPerCycle: noiseFilesPerCycle,
                 continuousScheduling: continuousScheduling,
                 settleBuildDelayMs: settleBuildDelayMs,
+                trustBuildScriptFreshness: trustBuildScriptFreshness,
                 rustDaemonDirectory: rustDaemonDirectory,
                 packageName: resolvedPackageName,
                 sourceFileRelativePath: resolvedSourceFile,

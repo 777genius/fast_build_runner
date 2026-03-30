@@ -9,6 +9,7 @@ class FastWatchBenchmarkRequest {
   final bool continuousScheduling;
   final int extraFixtureModels;
   final int settleBuildDelayMs;
+  final bool trustBuildScriptFreshness;
 
   const FastWatchBenchmarkRequest({
     required this.repoRoot,
@@ -21,5 +22,6 @@ class FastWatchBenchmarkRequest {
     this.continuousScheduling = false,
     this.extraFixtureModels = 0,
     this.settleBuildDelayMs = 0,
+    this.trustBuildScriptFreshness = false,
   });
 }

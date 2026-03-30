@@ -28,6 +28,7 @@ class FastWatchBenchmarkRunner {
       continuousScheduling: request.continuousScheduling,
       extraFixtureModels: request.extraFixtureModels,
       settleBuildDelayMs: request.settleBuildDelayMs,
+      trustBuildScriptFreshness: request.trustBuildScriptFreshness,
       dartSamples: dartRuns,
       rustSamples: rustRuns,
     );
@@ -53,6 +54,7 @@ class FastWatchBenchmarkRunner {
           continuousScheduling: request.continuousScheduling,
           extraFixtureModels: request.extraFixtureModels,
           settleBuildDelayMs: request.settleBuildDelayMs,
+          trustBuildScriptFreshness: request.trustBuildScriptFreshness,
         ),
       );
       stopwatch.stop();

@@ -38,6 +38,7 @@ class FastWatchAlphaSession {
     required int noiseFilesPerCycle,
     required bool continuousScheduling,
     required int settleBuildDelayMs,
+    required bool trustBuildScriptFreshness,
     required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
@@ -108,10 +109,16 @@ class FastWatchAlphaSession {
     }
 
     final buildSeries = FastBuildSeries(buildPlan);
+    final compileDependencyPaths = buildPlan.bootstrapper
+        .compileDependencyPathsWithinRoot(Directory.current.path);
     final buildResults = <FastWatchScheduledBuild<BuildResult>>[];
     final scheduler = FastWatchScheduler<BuildResult>(
-      onBuild: (updates) =>
-          buildSeries.run(updates, recentlyBootstrapped: false),
+      onBuild: (updates, {required skipBuildScriptFreshnessCheck}) =>
+          buildSeries.run(
+        updates,
+        recentlyBootstrapped: false,
+        skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
+      ),
       postBuildSettleDelay: Duration(milliseconds: settleBuildDelayMs),
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
@@ -151,6 +158,7 @@ class FastWatchAlphaSession {
           trackedPaths: _trackedWatchPaths(
             sourceFileRelativePath: sourceFileRelativePath,
             generatedEntrypointPath: generatedEntrypointPath,
+            extraPaths: compileDependencyPaths,
           ),
           warmupMs: 125,
         );
@@ -209,6 +217,13 @@ class FastWatchAlphaSession {
           collectSourceUpdates: buildSeries.collectSourceUpdates,
         );
         final mergedUpdates = resolution.updates;
+        final skipBuildScriptFreshnessCheck =
+            trustBuildScriptFreshness &&
+            !_requiresBuildScriptFreshnessCheck(
+              changedPaths: watchBatch.changedPaths,
+              compileDependencyPaths: compileDependencyPaths,
+              generatedEntrypointPath: generatedEntrypointPath,
+            );
         if (resolution.warning != null) {
           resolutionWarnings.add(
             'incremental-${cycleIndex + 1}: ${resolution.warning!}',
@@ -226,18 +241,27 @@ class FastWatchAlphaSession {
         if (mergedUpdates.isNotEmpty) {
           submittedBuildBatches++;
         }
+        final expectsBuild =
+            mergedUpdates.isNotEmpty || !skipBuildScriptFreshnessCheck;
         if (continuousScheduling) {
-          unawaited(scheduler.enqueue(mergedUpdates));
+          unawaited(
+            scheduler.enqueue(
+              mergedUpdates,
+              skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
+            ),
+          );
         } else {
           final expectedBuildCount = buildResults.length + 1;
-          await scheduler.enqueue(mergedUpdates);
-          if (mergedUpdates.isNotEmpty &&
-              buildResults.length < expectedBuildCount) {
+          await scheduler.enqueue(
+            mergedUpdates,
+            skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
+          );
+          if (expectsBuild && buildResults.length < expectedBuildCount) {
             throw StateError(
               'Watch alpha scheduler became idle without producing build #$expectedBuildCount.',
             );
           }
-          if (mergedUpdates.isNotEmpty) {
+          if (expectsBuild) {
             final scheduledBuild = buildResults[expectedBuildCount - 1];
             incrementalResults.add(
               _stepResult(
@@ -310,6 +334,8 @@ class FastWatchAlphaSession {
             'Watch alpha kept collecting watch batches while builds were in flight.',
           if (settleBuildDelayMs > 0)
             'Watch alpha used a post-build settle window of ${settleBuildDelayMs}ms to coalesce bursty updates.',
+          if (trustBuildScriptFreshness)
+            'Watch alpha trusted the bootstrapped build script freshness on incremental runs.',
           if (noiseFilesPerCycle > 0)
             'Watch alpha injected $noiseFilesPerCycle unrelated noise file(s) on every incremental cycle.',
           if (continuousScheduling &&
@@ -613,6 +639,7 @@ class FastWatchAlphaSession {
     return _CollectedWatchBatch(
       observedEvents: watchBatch.observedEvents,
       mergedUpdates: _collectDartChanges(packageName, watchBatch.watchEvents),
+      changedPaths: watchBatch.changedPaths,
       isEmpty: watchBatch.watchEvents.isEmpty,
     );
   }
@@ -672,6 +699,7 @@ class FastWatchAlphaSession {
         sourceFileRelativePath,
         response.events,
       ),
+      changedPaths: response.events.map((event) => event.path).toList(),
       isEmpty: response.events.isEmpty,
     );
   }
@@ -775,12 +803,39 @@ class FastWatchAlphaSession {
   List<String> _trackedWatchPaths({
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    Set<String> extraPaths = const <String>{},
   }) {
     return [
       p.join(Directory.current.path, sourceFileRelativePath),
       p.join(Directory.current.path, 'build.yaml'),
       generatedEntrypointPath,
+      ...extraPaths,
     ];
+  }
+
+  bool _requiresBuildScriptFreshnessCheck({
+    required List<String> changedPaths,
+    required Set<String> compileDependencyPaths,
+    required String generatedEntrypointPath,
+  }) {
+    if (changedPaths.isEmpty) {
+      return false;
+    }
+    final normalizedEntrypointPath = File(generatedEntrypointPath).absolute.path;
+    for (final changedPath in changedPaths) {
+      final absolutePath = File(changedPath).absolute.path;
+      final relativePath = _relativePath(absolutePath);
+      if (absolutePath == normalizedEntrypointPath) {
+        return true;
+      }
+      if (relativePath == 'build.yaml') {
+        return true;
+      }
+      if (compileDependencyPaths.contains(absolutePath)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   FastBuildStepResult _stepResult({
@@ -926,11 +981,13 @@ class FastWatchAlphaSession {
 class _CollectedWatchBatch {
   final List<String> observedEvents;
   final Map<AssetId, ChangeType> mergedUpdates;
+  final List<String> changedPaths;
   final bool isEmpty;
 
   const _CollectedWatchBatch({
     required this.observedEvents,
     required this.mergedUpdates,
+    required this.changedPaths,
     required this.isEmpty,
   });
 }
@@ -951,6 +1008,7 @@ class _PersistentDartWatchCollector {
   Completer<_DartWatchBatch>? _batchCompleter;
   final List<String> _observedEvents = [];
   final List<WatchEvent> _pendingEvents = [];
+  final List<String> _changedPaths = [];
 
   _PersistentDartWatchCollector._({
     required this.rootPath,
@@ -985,6 +1043,7 @@ class _PersistentDartWatchCollector {
     }
     _observedEvents.clear();
     _pendingEvents.clear();
+    _changedPaths.clear();
     _batchCompleter = Completer<_DartWatchBatch>();
     await mutate();
     try {
@@ -1022,10 +1081,12 @@ class _PersistentDartWatchCollector {
         _DartWatchBatch(
           observedEvents: List<String>.from(_observedEvents),
           watchEvents: List<WatchEvent>.from(_pendingEvents),
+          changedPaths: List<String>.from(_changedPaths),
         ),
       );
     });
 
+    _changedPaths.add(event.path);
     final relativePath = _relativePathFromRoot(rootPath, event.path);
     if (!_shouldTrackRelativePath(relativePath, sourceFileRelativePath)) {
       return;
@@ -1058,9 +1119,11 @@ class _PersistentDartWatchCollector {
 class _DartWatchBatch {
   final List<String> observedEvents;
   final List<WatchEvent> watchEvents;
+  final List<String> changedPaths;
 
   const _DartWatchBatch({
     required this.observedEvents,
     required this.watchEvents,
+    required this.changedPaths,
   });
 }

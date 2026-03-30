@@ -25,19 +25,29 @@ class FastWatchScheduledBuild<T> {
 }
 
 class FastWatchScheduler<T> {
-  final Future<T> Function(Map<AssetId, ChangeType> updates) _onBuild;
+  final Future<T> Function(
+    Map<AssetId, ChangeType> updates, {
+    required bool skipBuildScriptFreshnessCheck,
+  })
+  _onBuild;
   final Duration _postBuildSettleDelay;
   final StreamController<FastWatchScheduledBuild<T>> _resultsController =
       StreamController.broadcast();
 
   Map<AssetId, ChangeType> _pendingUpdates = <AssetId, ChangeType>{};
+  bool _hasPendingBuild = false;
+  bool _pendingSkipBuildScriptFreshnessCheck = true;
   Future<void>? _pumpFuture;
   Completer<void> _idleCompleter = Completer<void>()..complete();
   bool _closed = false;
   DateTime? _lastEnqueueAt;
 
   FastWatchScheduler({
-    required Future<T> Function(Map<AssetId, ChangeType>) onBuild,
+    required Future<T> Function(
+      Map<AssetId, ChangeType> updates, {
+      required bool skipBuildScriptFreshnessCheck,
+    })
+    onBuild,
     Duration postBuildSettleDelay = Duration.zero,
   }) : _onBuild = onBuild,
        _postBuildSettleDelay = postBuildSettleDelay;
@@ -46,14 +56,29 @@ class FastWatchScheduler<T> {
 
   bool get isBusy => _pumpFuture != null;
 
-  Future<void> enqueue(Map<AssetId, ChangeType> updates) {
+  Future<void> enqueue(
+    Map<AssetId, ChangeType> updates, {
+    required bool skipBuildScriptFreshnessCheck,
+  }) {
     if (_closed) {
       throw StateError('FastWatchScheduler is closed.');
     }
-    if (updates.isEmpty) {
+    final shouldScheduleBuild =
+        updates.isNotEmpty || !skipBuildScriptFreshnessCheck;
+    if (!shouldScheduleBuild) {
       return waitForIdle();
     }
-    _pendingUpdates = mergeAssetChangeMaps([_pendingUpdates, updates]);
+    if (!_hasPendingBuild) {
+      _pendingSkipBuildScriptFreshnessCheck = skipBuildScriptFreshnessCheck;
+    } else {
+      _pendingSkipBuildScriptFreshnessCheck =
+          _pendingSkipBuildScriptFreshnessCheck &&
+          skipBuildScriptFreshnessCheck;
+    }
+    _hasPendingBuild = true;
+    if (updates.isNotEmpty) {
+      _pendingUpdates = mergeAssetChangeMaps([_pendingUpdates, updates]);
+    }
     _lastEnqueueAt = DateTime.now();
     if (_idleCompleter.isCompleted) {
       _idleCompleter = Completer<void>();
@@ -75,11 +100,18 @@ class FastWatchScheduler<T> {
 
   Future<void> _pump() async {
     try {
-      while (_pendingUpdates.isNotEmpty) {
+      while (_hasPendingBuild) {
         final updates = _pendingUpdates;
+        final skipBuildScriptFreshnessCheck =
+            _pendingSkipBuildScriptFreshnessCheck;
         _pendingUpdates = <AssetId, ChangeType>{};
+        _pendingSkipBuildScriptFreshnessCheck = true;
+        _hasPendingBuild = false;
         final stopwatch = Stopwatch()..start();
-        final result = await _onBuild(updates);
+        final result = await _onBuild(
+          updates,
+          skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
+        );
         stopwatch.stop();
         _resultsController.add(
           FastWatchScheduledBuild(
@@ -88,7 +120,7 @@ class FastWatchScheduler<T> {
             result: result,
           ),
         );
-        if (_pendingUpdates.isNotEmpty) {
+        if (_hasPendingBuild) {
           await _waitForPostBuildSettleWindow();
         }
       }

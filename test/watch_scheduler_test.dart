@@ -16,7 +16,7 @@ void main() {
           <FastWatchScheduledBuild<Map<AssetId, ChangeType>>>[];
 
       final scheduler = FastWatchScheduler<Map<AssetId, ChangeType>>(
-        onBuild: (updates) async {
+        onBuild: (updates, {required skipBuildScriptFreshnessCheck}) async {
           capturedBatches.add(Map<AssetId, ChangeType>.from(updates));
           if (capturedBatches.length == 1) {
             startedFirstBuild.complete();
@@ -31,10 +31,25 @@ void main() {
       final assetA = AssetId('pkg', 'lib/a.dart');
       final assetB = AssetId('pkg', 'lib/b.dart');
 
-      unawaited(scheduler.enqueue({assetA: ChangeType.MODIFY}));
+      unawaited(
+        scheduler.enqueue(
+          {assetA: ChangeType.MODIFY},
+          skipBuildScriptFreshnessCheck: true,
+        ),
+      );
       await startedFirstBuild.future;
-      unawaited(scheduler.enqueue({assetA: ChangeType.REMOVE}));
-      unawaited(scheduler.enqueue({assetB: ChangeType.ADD}));
+      unawaited(
+        scheduler.enqueue(
+          {assetA: ChangeType.REMOVE},
+          skipBuildScriptFreshnessCheck: true,
+        ),
+      );
+      unawaited(
+        scheduler.enqueue(
+          {assetB: ChangeType.ADD},
+          skipBuildScriptFreshnessCheck: true,
+        ),
+      );
       releaseFirstBuild.complete();
 
       await scheduler.waitForIdle();
@@ -71,7 +86,7 @@ void main() {
       final assetC = AssetId('pkg', 'lib/c.dart');
 
       final scheduler = FastWatchScheduler<Map<AssetId, ChangeType>>(
-        onBuild: (updates) async {
+        onBuild: (updates, {required skipBuildScriptFreshnessCheck}) async {
           capturedBatches.add(Map<AssetId, ChangeType>.from(updates));
           if (capturedBatches.length == 1) {
             startedFirstBuild.complete();
@@ -82,13 +97,26 @@ void main() {
         postBuildSettleDelay: const Duration(milliseconds: 80),
       );
 
-      unawaited(scheduler.enqueue({assetA: ChangeType.MODIFY}));
+      unawaited(
+        scheduler.enqueue(
+          {assetA: ChangeType.MODIFY},
+          skipBuildScriptFreshnessCheck: true,
+        ),
+      );
       await startedFirstBuild.future;
-      unawaited(scheduler.enqueue({assetB: ChangeType.ADD}));
+      unawaited(
+        scheduler.enqueue(
+          {assetB: ChangeType.ADD},
+          skipBuildScriptFreshnessCheck: true,
+        ),
+      );
       releaseFirstBuild.complete();
       unawaited(
         Future<void>.delayed(const Duration(milliseconds: 20), () {
-          return scheduler.enqueue({assetC: ChangeType.MODIFY});
+          return scheduler.enqueue(
+            {assetC: ChangeType.MODIFY},
+            skipBuildScriptFreshnessCheck: true,
+          );
         }),
       );
 
@@ -101,6 +129,27 @@ void main() {
         assetC: ChangeType.MODIFY,
       });
 
+      await scheduler.close();
+    },
+  );
+
+  test(
+    'watch scheduler can force a build even when updates are empty',
+    () async {
+      final buildInvocations = <bool>[];
+      final scheduler = FastWatchScheduler<void>(
+        onBuild: (updates, {required skipBuildScriptFreshnessCheck}) async {
+          buildInvocations.add(skipBuildScriptFreshnessCheck);
+        },
+      );
+
+      await scheduler.enqueue(
+        const <AssetId, ChangeType>{},
+        skipBuildScriptFreshnessCheck: false,
+      );
+      await scheduler.waitForIdle();
+
+      expect(buildInvocations, [false]);
       await scheduler.close();
     },
   );

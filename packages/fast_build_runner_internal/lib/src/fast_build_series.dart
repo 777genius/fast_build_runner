@@ -81,6 +81,7 @@ class FastBuildSeries {
   Future<BuildResult> run(
     Map<AssetId, ChangeType> updates, {
     required bool recentlyBootstrapped,
+    bool skipBuildScriptFreshnessCheck = false,
     BuiltSet<BuildDirectory>? buildDirs,
     BuiltSet<BuildFilter>? buildFilters,
   }) async {
@@ -97,7 +98,7 @@ class FastBuildSeries {
       if (updates.isNotEmpty) {
         throw StateError('`recentlyBootstrapped` but updates not empty.');
       }
-    } else {
+    } else if (!skipBuildScriptFreshnessCheck) {
       final kernelFreshness = await _buildPlan.bootstrapper
           .checkCompileFreshness(digestsAreFresh: false);
       if (!kernelFreshness.outputIsFresh) {

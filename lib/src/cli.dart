@@ -133,6 +133,12 @@ class FastBuildRunnerCli {
         defaultsTo: '0',
         help:
             'Optional post-build settle window for coalescing another watch batch before scheduling the next rebuild.',
+      )
+      ..addFlag(
+        'trust-build-script-freshness',
+        negatable: false,
+        help:
+            'Experimental fast path: skip incremental build-script freshness checks after bootstrap.',
       );
 
     final parsed = parser.parse(args);
@@ -154,6 +160,8 @@ class FastBuildRunnerCli {
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
+      trustBuildScriptFreshness:
+          parsed['trust-build-script-freshness'] as bool,
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -213,6 +221,12 @@ class FastBuildRunnerCli {
         help:
             'Optional post-build settle window for coalescing another watch batch before scheduling the next rebuild.',
       )
+      ..addFlag(
+        'trust-build-script-freshness',
+        negatable: false,
+        help:
+            'Experimental fast path: skip incremental build-script freshness checks after bootstrap.',
+      )
       ..addOption(
         'output',
         defaultsTo: 'json',
@@ -239,6 +253,8 @@ class FastBuildRunnerCli {
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
+      trustBuildScriptFreshness:
+          parsed['trust-build-script-freshness'] as bool,
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

@@ -11,6 +11,7 @@ class FastWatchAlphaRequest {
   final bool continuousScheduling;
   final int extraFixtureModels;
   final int settleBuildDelayMs;
+  final bool trustBuildScriptFreshness;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -25,5 +26,6 @@ class FastWatchAlphaRequest {
     this.continuousScheduling = false,
     this.extraFixtureModels = 0,
     this.settleBuildDelayMs = 0,
+    this.trustBuildScriptFreshness = false,
   });
 }

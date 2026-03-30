@@ -202,6 +202,7 @@ class FastWatchAlphaRunner {
             '--noise-files-per-cycle=${request.noiseFilesPerCycle}',
             '--continuous-scheduling=${request.continuousScheduling}',
             '--settle-build-delay-ms=${request.settleBuildDelayMs}',
+            '--trust-build-script-freshness=${request.trustBuildScriptFreshness}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
