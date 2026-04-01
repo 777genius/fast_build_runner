@@ -1,0 +1,23 @@
+{
+  "name": "wah_flutter analytics service injection",
+  "sourceFileRelativePath": "lib/core/services/analytics_service.dart",
+  "generatedFileRelativePath": "lib/core/injection/injection.config.dart",
+  "steps": [
+    {
+      "name": "inject response helper",
+      "generatedMarkers": [
+        "AnalyticsService(gh<_i354.AppLogger>(), gh<_i661.ResponseHelper>())"
+      ],
+      "replacements": [
+        {
+          "from": "import 'package:injectable/injectable.dart';\nimport '../logging/app_logger.dart';\n",
+          "to": "import 'package:injectable/injectable.dart';\nimport '../logging/app_logger.dart';\nimport '../utils/response_helper.dart';\n"
+        },
+        {
+          "from": "class AnalyticsService {\n  final AppLogger _logger;\n\n  AnalyticsService(this._logger);\n",
+          "to": "class AnalyticsService {\n  final AppLogger _logger;\n  final ResponseHelper _responseHelper;\n\n  AnalyticsService(this._logger, this._responseHelper);\n"
+        }
+      ]
+    }
+  ]
+}

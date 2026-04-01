@@ -1,0 +1,37 @@
+{
+  "name": "wah_flutter photo_item freezed",
+  "sourceFileRelativePath": "lib/features/photo_gallery/domain/entities/photo_item.dart",
+  "generatedFileRelativePath": "lib/features/photo_gallery/domain/entities/photo_item.freezed.dart",
+  "steps": [
+    {
+      "name": "add caption",
+      "generatedMarkers": ["caption"],
+      "replacements": [
+        {
+          "from": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    required int index,\n  }) = _PhotoItem;\n",
+          "to": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    String? caption,\n    required int index,\n  }) = _PhotoItem;\n"
+        }
+      ]
+    },
+    {
+      "name": "add blur hash",
+      "generatedMarkers": ["blurHash"],
+      "replacements": [
+        {
+          "from": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    String? caption,\n    required int index,\n  }) = _PhotoItem;\n",
+          "to": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    String? caption,\n    String? blurHash,\n    required int index,\n  }) = _PhotoItem;\n"
+        }
+      ]
+    },
+    {
+      "name": "add dominant color",
+      "generatedMarkers": ["dominantColorHex"],
+      "replacements": [
+        {
+          "from": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    String? caption,\n    String? blurHash,\n    required int index,\n  }) = _PhotoItem;\n",
+          "to": "  const factory PhotoItem({\n    required String url,\n    String? thumbUrl,\n    String? caption,\n    String? blurHash,\n    String? dominantColorHex,\n    required int index,\n  }) = _PhotoItem;\n"
+        }
+      ]
+    }
+  ]
+}
