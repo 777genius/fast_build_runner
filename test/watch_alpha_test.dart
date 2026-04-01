@@ -4,6 +4,20 @@ import 'package:fast_build_runner_internal/fast_build_runner_internal.dart';
 import 'package:test/test.dart';
 
 void main() {
+  test('project mutation replacements tolerate CRLF line endings', () {
+    const replacement = ProjectTextReplacement(
+      from: '  final int? age;\n',
+      to: '  final int? age;\n  final String? nickname;\n',
+    );
+
+    final updated = replacement.apply(
+      'class Person {\r\n  final int? age;\r\n}\r\n',
+      stepName: 'crlf profile',
+    );
+
+    expect(updated, 'class Person {\r\n  final int? age;\r\n  final String? nickname;\r\n}\r\n');
+  });
+
   test(
     'watch alpha can drive mutations from an external mutation profile',
     () async {

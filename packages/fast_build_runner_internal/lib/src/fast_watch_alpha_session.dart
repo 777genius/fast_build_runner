@@ -24,6 +24,8 @@ import 'watch_update_merger.dart';
 const _dartWatchDebounceMs = 350;
 const _rustWatchDebounceMs = 200;
 const _watchTimeout = Duration(seconds: 15);
+const _upstreamInitialBuildTimeout = Duration(minutes: 2);
+const _upstreamIncrementalBuildTimeout = Duration(seconds: 45);
 
 class FastWatchAlphaSession {
   final BuilderFactories builderFactories;
@@ -476,7 +478,7 @@ class FastWatchAlphaSession {
     try {
       final initialStopwatch = Stopwatch()..start();
       final hasInitialResult = await buildResults.moveNext().timeout(
-        _watchTimeout,
+        _upstreamInitialBuildTimeout,
         onTimeout: () => throw TimeoutException(
           'Timed out waiting for the upstream watcher initial build result.',
         ),
@@ -508,7 +510,7 @@ class FastWatchAlphaSession {
           cycleIndex: cycleIndex,
         );
         final hasIncrementalResult = await buildResults.moveNext().timeout(
-          _watchTimeout,
+          _upstreamIncrementalBuildTimeout,
           onTimeout: () => throw TimeoutException(
             'Timed out waiting for upstream watcher build #${cycleIndex + 2}.',
           ),

@@ -157,10 +157,41 @@ class ProjectTextReplacement {
       return originalSource;
     }
     if (!originalSource.contains(from)) {
+      return _applyWithNormalizedLineEndings(
+        originalSource,
+        stepName: stepName,
+      );
+    }
+    return originalSource.replaceFirst(from, to);
+  }
+
+  String _applyWithNormalizedLineEndings(
+    String originalSource, {
+    required String stepName,
+  }) {
+    final normalizedOriginal = _normalizeLineEndings(originalSource);
+    final normalizedFrom = _normalizeLineEndings(from);
+    final normalizedTo = _normalizeLineEndings(to);
+    if (normalizedOriginal.contains(normalizedTo)) {
+      return originalSource;
+    }
+    if (!normalizedOriginal.contains(normalizedFrom)) {
       throw StateError(
         'Mutation profile step "$stepName" could not find expected source snippet.',
       );
     }
-    return originalSource.replaceFirst(from, to);
+    final updated = normalizedOriginal.replaceFirst(normalizedFrom, normalizedTo);
+    return _restoreLineEndings(updated, template: originalSource);
+  }
+
+  String _normalizeLineEndings(String source) {
+    return source.replaceAll('\r\n', '\n');
+  }
+
+  String _restoreLineEndings(String source, {required String template}) {
+    if (template.contains('\r\n')) {
+      return source.replaceAll('\n', '\r\n');
+    }
+    return source;
   }
 }
