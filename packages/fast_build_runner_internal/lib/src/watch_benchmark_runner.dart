@@ -11,6 +11,13 @@ class FastWatchBenchmarkRunner {
   Future<FastWatchBenchmarkResult> run(
     FastWatchBenchmarkRequest request,
   ) async {
+    final upstreamRuns = request.includeUpstream
+        ? await _runCases(
+            sourceEngine: 'upstream',
+            workDirectoryPath: p.join(request.workDirectoryPath, 'upstream'),
+            request: request,
+          )
+        : const <FastWatchBenchmarkEngineResult>[];
     final dartRuns = await _runCases(
       sourceEngine: 'dart',
       workDirectoryPath: p.join(request.workDirectoryPath, 'dart'),
@@ -29,6 +36,7 @@ class FastWatchBenchmarkRunner {
       extraFixtureModels: request.extraFixtureModels,
       settleBuildDelayMs: request.settleBuildDelayMs,
       trustBuildScriptFreshness: request.trustBuildScriptFreshness,
+      upstreamSamples: upstreamRuns,
       dartSamples: dartRuns,
       rustSamples: rustRuns,
     );

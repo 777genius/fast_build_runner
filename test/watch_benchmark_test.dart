@@ -37,6 +37,32 @@ void main() {
     timeout: const Timeout(Duration(minutes: 5)),
   );
 
+  test(
+    'watch benchmark can include the upstream baseline engine',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchBenchmarkRunner().run(
+        FastWatchBenchmarkRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_benchmark_upstream',
+          keepRunDirectory: false,
+          includeUpstream: true,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.upstream, isNotNull);
+      expect(result.upstream!.sourceEngine, 'upstream');
+      expect(result.upstreamSamples, hasLength(1));
+      expect(result.rustSpeedupVsUpstream, isNotNull);
+      expect(result.dartSpeedupVsUpstream, isNotNull);
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 6)),
+  );
+
   test('watch benchmark can render summary and markdown output', () {
     final result = FastWatchBenchmarkResult(
       status: 'success',
@@ -47,6 +73,55 @@ void main() {
       extraFixtureModels: 12,
       settleBuildDelayMs: 90,
       trustBuildScriptFreshness: true,
+      upstream: const FastWatchBenchmarkEngineResult(
+        sourceEngine: 'upstream',
+        elapsedMilliseconds: 1500,
+        result: FastWatchAlphaResult(
+          status: 'success',
+          sourceEngine: 'upstream',
+          upstreamCommit: 'commit',
+          generatedEntrypointPath: 'entrypoint',
+          runDirectory: 'run-upstream',
+          warnings: [],
+          errors: [],
+          observedEvents: [],
+          mergedUpdates: [],
+          observedEventBatches: [],
+          mergedUpdateBatches: [],
+          initialBuild: FastBuildStepResult(
+            name: 'initial',
+            elapsedMilliseconds: 980,
+            status: 'success',
+            failureType: null,
+            outputs: [],
+            errors: [],
+            generatedFileExists: true,
+            generatedFileHasMutation: false,
+          ),
+          incrementalBuild: FastBuildStepResult(
+            name: 'incremental-1',
+            elapsedMilliseconds: 140,
+            status: 'success',
+            failureType: null,
+            outputs: [],
+            errors: [],
+            generatedFileExists: true,
+            generatedFileHasMutation: true,
+          ),
+          incrementalBuilds: [
+            FastBuildStepResult(
+              name: 'incremental-1',
+              elapsedMilliseconds: 140,
+              status: 'success',
+              failureType: null,
+              outputs: [],
+              errors: [],
+              generatedFileExists: true,
+              generatedFileHasMutation: true,
+            ),
+          ],
+        ),
+      ),
       dart: FastWatchBenchmarkEngineResult(
         sourceEngine: 'dart',
         elapsedMilliseconds: 1200,
@@ -232,7 +307,51 @@ void main() {
           ),
         ),
       ],
+      upstreamSamples: const [
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'upstream',
+          elapsedMilliseconds: 1500,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'upstream',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-upstream-1',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+        FastWatchBenchmarkEngineResult(
+          sourceEngine: 'upstream',
+          elapsedMilliseconds: 1600,
+          result: FastWatchAlphaResult(
+            status: 'success',
+            sourceEngine: 'upstream',
+            upstreamCommit: 'commit',
+            generatedEntrypointPath: 'entrypoint',
+            runDirectory: 'sample-upstream-2',
+            warnings: [],
+            errors: [],
+            observedEvents: [],
+            mergedUpdates: [],
+            observedEventBatches: [],
+            mergedUpdateBatches: [],
+            initialBuild: null,
+            incrementalBuild: null,
+            incrementalBuilds: [],
+          ),
+        ),
+      ],
       rustSpeedupVsDart: 1.5,
+      rustSpeedupVsUpstream: 1.875,
+      dartSpeedupVsUpstream: 1.25,
       warnings: const ['speedup is illustrative'],
       errors: const [],
     );
@@ -240,6 +359,8 @@ void main() {
     final summary = result.toSummaryLines().join('\n');
     final markdown = result.toMarkdown();
 
+    expect(summary, contains('upstream: 1500 ms'));
+    expect(summary, contains('upstreamSamples: 1500, 1600'));
     expect(summary, contains('dart: 1200 ms'));
     expect(summary, contains('repeats: 2'));
     expect(summary, contains('noiseFilesPerCycle: 3'));
@@ -249,8 +370,10 @@ void main() {
     expect(summary, contains('trustBuildScriptFreshness: true'));
     expect(summary, contains('dartSamples: 1200, 1400'));
     expect(summary, contains('rustSamples: 800, 900'));
+    expect(summary, contains('upstreamIncrementalBuild: 140 ms'));
     expect(summary, contains('dartIncrementalBuild: 120 ms'));
     expect(summary, contains('rustIncrementalBuild: 80 ms'));
+    expect(summary, contains('upstreamTotalIncrementalBuild: 140 ms'));
     expect(summary, contains('dartTotalIncrementalBuild: 120 ms'));
     expect(summary, contains('rustTotalIncrementalBuild: 80 ms'));
     expect(summary, contains('dartWatchCollection: 410, 420 ms'));
@@ -262,14 +385,19 @@ void main() {
     expect(summary, contains('rustIncrementalBuildSpeedupVsDart: 1.50x'));
     expect(summary, contains('rustTotalIncrementalBuildSpeedupVsDart: 1.50x'));
     expect(summary, contains('rustWatchCollectionSpeedupVsDart: 1.54x'));
+    expect(summary, contains('rustSpeedupVsUpstream: 1.88x'));
+    expect(summary, contains('dartSpeedupVsUpstream: 1.25x'));
     expect(summary, contains('rustSpeedupVsDart: 1.50x'));
     expect(markdown, contains('# fast_build_runner watch benchmark'));
+    expect(markdown, contains('- upstream: `1500 ms`'));
     expect(markdown, contains('- noise files per cycle: `3`'));
     expect(markdown, contains('- continuous scheduling: `true`'));
     expect(markdown, contains('- extra fixture models: `12`'));
     expect(markdown, contains('- post-build settle delay: `90 ms`'));
     expect(markdown, contains('- trust build script freshness: `true`'));
+    expect(markdown, contains('- upstream incremental build: `140 ms`'));
     expect(markdown, contains('- rust incremental build: `80 ms`'));
+    expect(markdown, contains('- upstream total incremental build: `140 ms`'));
     expect(markdown, contains('- rust total incremental build: `80 ms`'));
     expect(markdown, contains('- rust watch collection: `260, 280 ms`'));
     expect(markdown, contains('- rust total watch collection: `540 ms`'));
@@ -286,6 +414,8 @@ void main() {
       markdown,
       contains('- rust watch collection speedup vs dart: `1.54x`'),
     );
+    expect(markdown, contains('- rust speedup vs upstream: `1.88x`'));
+    expect(markdown, contains('- dart speedup vs upstream: `1.25x`'));
     expect(markdown, contains('- rust speedup vs dart: `1.50x`'));
   });
 

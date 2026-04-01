@@ -239,6 +239,12 @@ class FastBuildRunnerCli {
         help:
             'Experimental fast path: skip incremental build-script freshness checks after bootstrap.',
       )
+      ..addFlag(
+        'include-upstream',
+        negatable: false,
+        help:
+            'Also benchmark the upstream build_runner watch loop as a baseline.',
+      )
       ..addOption(
         'output',
         defaultsTo: 'json',
@@ -269,6 +275,7 @@ class FastBuildRunnerCli {
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
       trustBuildScriptFreshness: parsed['trust-build-script-freshness'] as bool,
+      includeUpstream: parsed['include-upstream'] as bool,
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {
