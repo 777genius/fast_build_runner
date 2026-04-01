@@ -4,7 +4,6 @@ import 'dart:io';
 
 import 'package:code_builder/code_builder.dart';
 import 'package:dart_style/dart_style.dart';
-import 'package:path/path.dart' as p;
 
 import 'package:build_runner/src/internal.dart';
 
@@ -19,10 +18,7 @@ class FastBootstrapGenerator {
       projectDirectory,
       () => loadBuilderFactories(workspace: false),
     );
-    final internalImport = _relativeImport(
-      fromFile: outputPath,
-      toFile: internalLibraryPath,
-    );
+    final internalImport = Uri.file(internalLibraryPath).toString();
 
     final library = Library(
       (builder) => builder.body.addAll([
@@ -97,9 +93,5 @@ ${library.accept(emitter)}
     } finally {
       Directory.current = previous;
     }
-  }
-
-  String _relativeImport({required String fromFile, required String toFile}) {
-    return p.relative(toFile, from: p.dirname(fromFile)).replaceAll(r'\', '/');
   }
 }

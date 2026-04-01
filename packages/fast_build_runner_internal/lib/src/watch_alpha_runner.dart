@@ -463,10 +463,7 @@ class $className {
     if (original.contains('fast_build_runner prepared fixture')) {
       return;
     }
-    final devDependenciesPatched = original.replaceFirst(
-      RegExp(r'^dev_dependencies:\n', multiLine: true),
-      'dev_dependencies:\n  build_runner: any\n',
-    );
+    final devDependenciesPatched = _ensureBuildRunnerDevDependency(original);
     final patched = StringBuffer()
       ..writeln(devDependenciesPatched.trimRight())
       ..writeln()
@@ -489,6 +486,19 @@ class $className {
         "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_runner')}",
       );
     pubspecFile.writeAsStringSync(patched.toString());
+  }
+
+  String _ensureBuildRunnerDevDependency(String original) {
+    if (RegExp(r'^  build_runner\s*:', multiLine: true).hasMatch(original)) {
+      return original;
+    }
+    if (RegExp(r'^dev_dependencies:\n', multiLine: true).hasMatch(original)) {
+      return original.replaceFirst(
+        RegExp(r'^dev_dependencies:\n', multiLine: true),
+        'dev_dependencies:\n  build_runner: any\n',
+      );
+    }
+    return '${original.trimRight()}\n\ndev_dependencies:\n  build_runner: any\n';
   }
 }
 
