@@ -31,6 +31,7 @@ class FastBuildSeries {
   BuildPlan _buildPlan;
   AssetGraph _assetGraph;
   ReaderWriter _readerWriter;
+  final bool _enableAssetGraphSerializeProbe;
 
   final ResourceManager _resourceManager = ResourceManager();
   final StreamController<BuildResult> _buildResultsController =
@@ -47,18 +48,24 @@ class FastBuildSeries {
     required AssetGraph assetGraph,
     required ReaderWriter readerWriter,
     required BuiltMap<AssetId, ChangeType>? updatesFromLoad,
+    required bool enableAssetGraphSerializeProbe,
   }) : _buildPlan = buildPlan,
        _assetGraph = assetGraph,
        _readerWriter = readerWriter,
-       _updatesFromLoad = updatesFromLoad;
+       _updatesFromLoad = updatesFromLoad,
+       _enableAssetGraphSerializeProbe = enableAssetGraphSerializeProbe;
 
-  factory FastBuildSeries(BuildPlan buildPlan) {
+  factory FastBuildSeries(
+    BuildPlan buildPlan, {
+    bool enableAssetGraphSerializeProbe = false,
+  }) {
     final assetGraph = buildPlan.takeAssetGraph();
     return FastBuildSeries._(
       buildPlan: buildPlan,
       assetGraph: assetGraph,
       readerWriter: _createReaderWriter(buildPlan, assetGraph),
       updatesFromLoad: buildPlan.updates,
+      enableAssetGraphSerializeProbe: enableAssetGraphSerializeProbe,
     );
   }
 
@@ -218,9 +225,16 @@ class FastBuildSeries {
     if (result.status == BuildStatus.success) {
       _assetGraphNeedsPersistence = true;
     }
-    final assetGraphSerializeProbeStopwatch = Stopwatch()..start();
-    final assetGraphBytes = _assetGraph.serialize();
-    assetGraphSerializeProbeStopwatch.stop();
+    var assetGraphSerializeProbeMilliseconds = 0;
+    var assetGraphSerializeProbeBytes = 0;
+    if (_enableAssetGraphSerializeProbe) {
+      final assetGraphSerializeProbeStopwatch = Stopwatch()..start();
+      final assetGraphBytes = _assetGraph.serialize();
+      assetGraphSerializeProbeStopwatch.stop();
+      assetGraphSerializeProbeMilliseconds =
+          assetGraphSerializeProbeStopwatch.elapsedMilliseconds;
+      assetGraphSerializeProbeBytes = assetGraphBytes.length;
+    }
     _buildResultsController.add(result);
     return FastBuildRunOutcome(
       result: result,
@@ -262,8 +276,8 @@ class FastBuildSeries {
         buildLogFinishMilliseconds:
             build.lastRunMetrics.buildLogFinishMilliseconds,
         assetGraphSerializeProbeMilliseconds:
-            assetGraphSerializeProbeStopwatch.elapsedMilliseconds,
-        assetGraphSerializeProbeBytes: assetGraphBytes.length,
+            assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       ),
     );
   }
