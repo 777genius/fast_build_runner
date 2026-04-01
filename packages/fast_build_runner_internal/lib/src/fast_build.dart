@@ -50,6 +50,11 @@ final ResolversImpl _defaultResolvers = ResolversImpl(
 );
 
 class FastBuildInternalMetrics {
+  final int assetGraphUpdateMilliseconds;
+  final int runPhasesMilliseconds;
+  final int phasedAssetDepsUpdateMilliseconds;
+  final int matchingPrimaryInputsMilliseconds;
+  final int buildShouldRunMilliseconds;
   final int assetGraphPersistMilliseconds;
   final int cacheFlushMilliseconds;
   final int resourceDisposeMilliseconds;
@@ -58,6 +63,11 @@ class FastBuildInternalMetrics {
   final int buildLogFinishMilliseconds;
 
   const FastBuildInternalMetrics({
+    required this.assetGraphUpdateMilliseconds,
+    required this.runPhasesMilliseconds,
+    required this.phasedAssetDepsUpdateMilliseconds,
+    required this.matchingPrimaryInputsMilliseconds,
+    required this.buildShouldRunMilliseconds,
     required this.assetGraphPersistMilliseconds,
     required this.cacheFlushMilliseconds,
     required this.resourceDisposeMilliseconds,
@@ -67,6 +77,11 @@ class FastBuildInternalMetrics {
   });
 
   static const zero = FastBuildInternalMetrics(
+    assetGraphUpdateMilliseconds: 0,
+    runPhasesMilliseconds: 0,
+    phasedAssetDepsUpdateMilliseconds: 0,
+    matchingPrimaryInputsMilliseconds: 0,
+    buildShouldRunMilliseconds: 0,
     assetGraphPersistMilliseconds: 0,
     cacheFlushMilliseconds: 0,
     resourceDisposeMilliseconds: 0,
@@ -76,6 +91,11 @@ class FastBuildInternalMetrics {
   );
 
   FastBuildInternalMetrics copyWith({
+    int? assetGraphUpdateMilliseconds,
+    int? runPhasesMilliseconds,
+    int? phasedAssetDepsUpdateMilliseconds,
+    int? matchingPrimaryInputsMilliseconds,
+    int? buildShouldRunMilliseconds,
     int? assetGraphPersistMilliseconds,
     int? cacheFlushMilliseconds,
     int? resourceDisposeMilliseconds,
@@ -84,6 +104,18 @@ class FastBuildInternalMetrics {
     int? buildLogFinishMilliseconds,
   }) {
     return FastBuildInternalMetrics(
+      assetGraphUpdateMilliseconds:
+          assetGraphUpdateMilliseconds ?? this.assetGraphUpdateMilliseconds,
+      runPhasesMilliseconds:
+          runPhasesMilliseconds ?? this.runPhasesMilliseconds,
+      phasedAssetDepsUpdateMilliseconds:
+          phasedAssetDepsUpdateMilliseconds ??
+          this.phasedAssetDepsUpdateMilliseconds,
+      matchingPrimaryInputsMilliseconds:
+          matchingPrimaryInputsMilliseconds ??
+          this.matchingPrimaryInputsMilliseconds,
+      buildShouldRunMilliseconds:
+          buildShouldRunMilliseconds ?? this.buildShouldRunMilliseconds,
       assetGraphPersistMilliseconds:
           assetGraphPersistMilliseconds ?? this.assetGraphPersistMilliseconds,
       cacheFlushMilliseconds:
@@ -177,6 +209,8 @@ class FastBuild {
   /// The build output.
   BuildOutputReader? _buildOutputReader;
   FastBuildInternalMetrics _lastRunMetrics = FastBuildInternalMetrics.zero;
+  int _matchingPrimaryInputsMilliseconds = 0;
+  int _buildShouldRunMilliseconds = 0;
 
   FastBuild({
     required this.buildPlan,
@@ -217,6 +251,8 @@ class FastBuild {
 
   Future<BuildResult> run(Map<AssetId, ChangeType> updates) async {
     _lastRunMetrics = FastBuildInternalMetrics.zero;
+    _matchingPrimaryInputsMilliseconds = 0;
+    _buildShouldRunMilliseconds = 0;
     buildLog.configuration = buildLog.configuration.rebuild(
       (b) => b..singleOutputPackage = buildPackages.singleOutputPackage,
     );
@@ -328,18 +364,29 @@ class FastBuild {
     final done = Completer<BuildResult>();
     runZonedGuarded(
       () async {
+        var assetGraphUpdateMilliseconds = 0;
+        var runPhasesMilliseconds = 0;
+        var phasedAssetDepsUpdateMilliseconds = 0;
         var assetGraphPersistMilliseconds = 0;
         if (!assetGraph.cleanBuild) {
+          final assetGraphUpdateStopwatch = Stopwatch()..start();
           await _updateAssetGraph(updates);
+          assetGraphUpdateStopwatch.stop();
+          assetGraphUpdateMilliseconds =
+              assetGraphUpdateStopwatch.elapsedMilliseconds;
         }
         await resolversImpl?.takeLockAndStartBuild(assetGraph);
+        final runPhasesStopwatch = Stopwatch()..start();
         final result = await _runPhases();
+        runPhasesStopwatch.stop();
+        runPhasesMilliseconds = runPhasesStopwatch.elapsedMilliseconds;
 
         assetGraph.previousBuildTriggersDigest =
             buildConfigs.buildTriggers.digest;
         // Combine previous phased asset deps, if any, with the newly loaded
         // deps. Because of skipped builds, the newly loaded deps might just
         // say "not generated yet", in which case the old value is retained.
+        final phasedAssetDepsUpdateStopwatch = Stopwatch()..start();
         final currentPhasedAssetDeps =
             resolversImpl?.phasedAssetDeps() ?? PhasedAssetDeps();
         final updatedPhasedAssetDeps =
@@ -349,6 +396,9 @@ class FastBuild {
                   currentPhasedAssetDeps,
                 );
         assetGraph.previousPhasedAssetDeps = updatedPhasedAssetDeps;
+        phasedAssetDepsUpdateStopwatch.stop();
+        phasedAssetDepsUpdateMilliseconds =
+            phasedAssetDepsUpdateStopwatch.elapsedMilliseconds;
         if (persistAssetGraphOnEveryBuild) {
           final assetGraphPersistStopwatch = Stopwatch()..start();
           await readerWriter.writeAsBytes(
@@ -385,6 +435,11 @@ class FastBuild {
 
         if (!done.isCompleted) done.complete(result);
         _lastRunMetrics = _lastRunMetrics.copyWith(
+          assetGraphUpdateMilliseconds: assetGraphUpdateMilliseconds,
+          runPhasesMilliseconds: runPhasesMilliseconds,
+          phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
+          matchingPrimaryInputsMilliseconds: _matchingPrimaryInputsMilliseconds,
+          buildShouldRunMilliseconds: _buildShouldRunMilliseconds,
           assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         );
       },
@@ -423,10 +478,14 @@ class FastBuild {
         final phase = buildPhases.inBuildPhases[phaseNum];
 
         if (phase.isOptional) continue;
+        final matchingPrimaryInputsStopwatch = Stopwatch()..start();
         final primaryInputs = await _matchingPrimaryInputs(
           phase.package,
           phaseNum,
         );
+        matchingPrimaryInputsStopwatch.stop();
+        _matchingPrimaryInputsMilliseconds +=
+            matchingPrimaryInputsStopwatch.elapsedMilliseconds;
         // If `primaryInputs` is empty, the phase will only run lazily,
         // and might not run at all; so don't log it to start with.
         if (primaryInputs.isNotEmpty) {
@@ -600,7 +659,8 @@ class FastBuild {
       );
 
       final builderOutputs = expectedOutputs(builder, primaryInput);
-      if (!await tracker.trackStage(
+      final buildShouldRunStopwatch = Stopwatch()..start();
+      final shouldRun = await tracker.trackStage(
         'Setup',
         () => _buildShouldRun(
           phaseNumber,
@@ -608,7 +668,10 @@ class FastBuild {
           builderOutputs,
           singleStepReaderWriter,
         ),
-      )) {
+      );
+      buildShouldRunStopwatch.stop();
+      _buildShouldRunMilliseconds += buildShouldRunStopwatch.elapsedMilliseconds;
+      if (!shouldRun) {
         buildLog.skipStep(phase: phase, lazy: lazy);
         return <AssetId>[];
       }

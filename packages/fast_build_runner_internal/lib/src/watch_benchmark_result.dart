@@ -137,7 +137,7 @@ class FastWatchBenchmarkResult {
               null &&
           _incrementalProfileMetric(
                 dart.result.incrementalBuild?.profile,
-                'trackedActionMilliseconds',
+                'trackedActionWallMilliseconds',
               ) !=
               null &&
           _incrementalProfileMetric(
@@ -146,9 +146,9 @@ class FastWatchBenchmarkResult {
               )! >
               _incrementalProfileMetric(
                 dart.result.incrementalBuild?.profile,
-                'trackedActionMilliseconds',
+                'trackedActionWallMilliseconds',
               )!)
-        'The dart incremental build still spends more time in untracked engine overhead than in tracked builder actions.',
+        'The dart incremental build still spends more time outside tracked action wall-clock than inside tracked builder actions.',
       if (_incrementalProfileMetric(
                 rust.result.incrementalBuild?.profile,
                 'untrackedBuildRunMilliseconds',
@@ -156,7 +156,7 @@ class FastWatchBenchmarkResult {
               null &&
           _incrementalProfileMetric(
                 rust.result.incrementalBuild?.profile,
-                'trackedActionMilliseconds',
+                'trackedActionWallMilliseconds',
               ) !=
               null &&
           _incrementalProfileMetric(
@@ -165,9 +165,9 @@ class FastWatchBenchmarkResult {
               )! >
               _incrementalProfileMetric(
                 rust.result.incrementalBuild?.profile,
-                'trackedActionMilliseconds',
+                'trackedActionWallMilliseconds',
               )!)
-        'The rust incremental build still spends more time in untracked engine overhead than in tracked builder actions.',
+        'The rust incremental build still spends more time outside tracked action wall-clock than inside tracked builder actions.',
     ];
     final errors = <String>[
       if (upstream != null && !upstream.result.isSuccess)
@@ -292,10 +292,82 @@ class FastWatchBenchmarkResult {
         'trackedActionMilliseconds',
       );
 
+  int? get dartIncrementalAssetGraphUpdateMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'assetGraphUpdateMilliseconds',
+      );
+
+  int? get rustIncrementalAssetGraphUpdateMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'assetGraphUpdateMilliseconds',
+      );
+
+  int? get dartIncrementalRunPhasesMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'runPhasesMilliseconds',
+      );
+
+  int? get rustIncrementalRunPhasesMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'runPhasesMilliseconds',
+      );
+
+  int? get dartIncrementalPhasedAssetDepsUpdateMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'phasedAssetDepsUpdateMilliseconds',
+      );
+
+  int? get rustIncrementalPhasedAssetDepsUpdateMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'phasedAssetDepsUpdateMilliseconds',
+      );
+
+  int? get dartIncrementalMatchingPrimaryInputsMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'matchingPrimaryInputsMilliseconds',
+      );
+
+  int? get rustIncrementalMatchingPrimaryInputsMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'matchingPrimaryInputsMilliseconds',
+      );
+
+  int? get dartIncrementalBuildShouldRunMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunMilliseconds',
+      );
+
+  int? get rustIncrementalBuildShouldRunMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunMilliseconds',
+      );
+
   int? get rustIncrementalTrackedActionMilliseconds =>
       _incrementalProfileMetric(
         rust.result.incrementalBuild?.profile,
         'trackedActionMilliseconds',
+      );
+
+  int? get dartIncrementalTrackedActionWallMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'trackedActionWallMilliseconds',
+      );
+
+  int? get rustIncrementalTrackedActionWallMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'trackedActionWallMilliseconds',
       );
 
   int? get dartIncrementalUntrackedBuildMilliseconds =>
@@ -484,6 +556,30 @@ class FastWatchBenchmarkResult {
         dartIncrementalTrackedActionMilliseconds,
     'rustIncrementalTrackedActionMilliseconds':
         rustIncrementalTrackedActionMilliseconds,
+    'dartIncrementalTrackedActionWallMilliseconds':
+        dartIncrementalTrackedActionWallMilliseconds,
+    'rustIncrementalTrackedActionWallMilliseconds':
+        rustIncrementalTrackedActionWallMilliseconds,
+    'dartIncrementalAssetGraphUpdateMilliseconds':
+        dartIncrementalAssetGraphUpdateMilliseconds,
+    'rustIncrementalAssetGraphUpdateMilliseconds':
+        rustIncrementalAssetGraphUpdateMilliseconds,
+    'dartIncrementalRunPhasesMilliseconds':
+        dartIncrementalRunPhasesMilliseconds,
+    'rustIncrementalRunPhasesMilliseconds':
+        rustIncrementalRunPhasesMilliseconds,
+    'dartIncrementalPhasedAssetDepsUpdateMilliseconds':
+        dartIncrementalPhasedAssetDepsUpdateMilliseconds,
+    'rustIncrementalPhasedAssetDepsUpdateMilliseconds':
+        rustIncrementalPhasedAssetDepsUpdateMilliseconds,
+    'dartIncrementalMatchingPrimaryInputsMilliseconds':
+        dartIncrementalMatchingPrimaryInputsMilliseconds,
+    'rustIncrementalMatchingPrimaryInputsMilliseconds':
+        rustIncrementalMatchingPrimaryInputsMilliseconds,
+    'dartIncrementalBuildShouldRunMilliseconds':
+        dartIncrementalBuildShouldRunMilliseconds,
+    'rustIncrementalBuildShouldRunMilliseconds':
+        rustIncrementalBuildShouldRunMilliseconds,
     'dartIncrementalFreshnessCheckMilliseconds':
         dartIncrementalFreshnessCheckMilliseconds,
     'rustIncrementalFreshnessCheckMilliseconds':
@@ -598,6 +694,30 @@ class FastWatchBenchmarkResult {
         'dartIncrementalTrackedActionMilliseconds: $dartIncrementalTrackedActionMilliseconds ms',
       if (rustIncrementalTrackedActionMilliseconds != null)
         'rustIncrementalTrackedActionMilliseconds: $rustIncrementalTrackedActionMilliseconds ms',
+      if (dartIncrementalTrackedActionWallMilliseconds != null)
+        'dartIncrementalTrackedActionWallMilliseconds: $dartIncrementalTrackedActionWallMilliseconds ms',
+      if (rustIncrementalTrackedActionWallMilliseconds != null)
+        'rustIncrementalTrackedActionWallMilliseconds: $rustIncrementalTrackedActionWallMilliseconds ms',
+      if (dartIncrementalAssetGraphUpdateMilliseconds != null)
+        'dartIncrementalAssetGraphUpdateMilliseconds: $dartIncrementalAssetGraphUpdateMilliseconds ms',
+      if (rustIncrementalAssetGraphUpdateMilliseconds != null)
+        'rustIncrementalAssetGraphUpdateMilliseconds: $rustIncrementalAssetGraphUpdateMilliseconds ms',
+      if (dartIncrementalRunPhasesMilliseconds != null)
+        'dartIncrementalRunPhasesMilliseconds: $dartIncrementalRunPhasesMilliseconds ms',
+      if (rustIncrementalRunPhasesMilliseconds != null)
+        'rustIncrementalRunPhasesMilliseconds: $rustIncrementalRunPhasesMilliseconds ms',
+      if (dartIncrementalPhasedAssetDepsUpdateMilliseconds != null)
+        'dartIncrementalPhasedAssetDepsUpdateMilliseconds: $dartIncrementalPhasedAssetDepsUpdateMilliseconds ms',
+      if (rustIncrementalPhasedAssetDepsUpdateMilliseconds != null)
+        'rustIncrementalPhasedAssetDepsUpdateMilliseconds: $rustIncrementalPhasedAssetDepsUpdateMilliseconds ms',
+      if (dartIncrementalMatchingPrimaryInputsMilliseconds != null)
+        'dartIncrementalMatchingPrimaryInputsMilliseconds: $dartIncrementalMatchingPrimaryInputsMilliseconds ms',
+      if (rustIncrementalMatchingPrimaryInputsMilliseconds != null)
+        'rustIncrementalMatchingPrimaryInputsMilliseconds: $rustIncrementalMatchingPrimaryInputsMilliseconds ms',
+      if (dartIncrementalBuildShouldRunMilliseconds != null)
+        'dartIncrementalBuildShouldRunMilliseconds: $dartIncrementalBuildShouldRunMilliseconds ms',
+      if (rustIncrementalBuildShouldRunMilliseconds != null)
+        'rustIncrementalBuildShouldRunMilliseconds: $rustIncrementalBuildShouldRunMilliseconds ms',
       if (dartIncrementalFreshnessCheckMilliseconds != null)
         'dartIncrementalFreshnessCheckMilliseconds: $dartIncrementalFreshnessCheckMilliseconds ms',
       if (rustIncrementalFreshnessCheckMilliseconds != null)

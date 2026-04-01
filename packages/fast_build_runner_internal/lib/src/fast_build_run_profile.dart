@@ -8,7 +8,13 @@ class FastBuildRunProfile {
   final int freshnessCheckMilliseconds;
   final int configReloadMilliseconds;
   final int buildRunMilliseconds;
+  final int assetGraphUpdateMilliseconds;
+  final int runPhasesMilliseconds;
+  final int phasedAssetDepsUpdateMilliseconds;
+  final int matchingPrimaryInputsMilliseconds;
+  final int buildShouldRunMilliseconds;
   final int trackedActionMilliseconds;
+  final int trackedActionWallMilliseconds;
   final int trackedPhaseMilliseconds;
   final int trackedBuilderActionCount;
   final int trackedBuildPhaseCount;
@@ -25,7 +31,13 @@ class FastBuildRunProfile {
     required this.freshnessCheckMilliseconds,
     required this.configReloadMilliseconds,
     required this.buildRunMilliseconds,
+    required this.assetGraphUpdateMilliseconds,
+    required this.runPhasesMilliseconds,
+    required this.phasedAssetDepsUpdateMilliseconds,
+    required this.matchingPrimaryInputsMilliseconds,
+    required this.buildShouldRunMilliseconds,
     required this.trackedActionMilliseconds,
+    required this.trackedActionWallMilliseconds,
     required this.trackedPhaseMilliseconds,
     required this.trackedBuilderActionCount,
     required this.trackedBuildPhaseCount,
@@ -46,7 +58,13 @@ class FastBuildRunProfile {
     'freshnessCheckMilliseconds': freshnessCheckMilliseconds,
     'configReloadMilliseconds': configReloadMilliseconds,
     'buildRunMilliseconds': buildRunMilliseconds,
+    'assetGraphUpdateMilliseconds': assetGraphUpdateMilliseconds,
+    'runPhasesMilliseconds': runPhasesMilliseconds,
+    'phasedAssetDepsUpdateMilliseconds': phasedAssetDepsUpdateMilliseconds,
+    'matchingPrimaryInputsMilliseconds': matchingPrimaryInputsMilliseconds,
+    'buildShouldRunMilliseconds': buildShouldRunMilliseconds,
     'trackedActionMilliseconds': trackedActionMilliseconds,
+    'trackedActionWallMilliseconds': trackedActionWallMilliseconds,
     'trackedPhaseMilliseconds': trackedPhaseMilliseconds,
     'trackedBuilderActionCount': trackedBuilderActionCount,
     'trackedBuildPhaseCount': trackedBuildPhaseCount,
@@ -66,7 +84,17 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: json['freshnessCheckMilliseconds']! as int,
         configReloadMilliseconds: json['configReloadMilliseconds']! as int,
         buildRunMilliseconds: json['buildRunMilliseconds']! as int,
+        assetGraphUpdateMilliseconds:
+            json['assetGraphUpdateMilliseconds']! as int,
+        runPhasesMilliseconds: json['runPhasesMilliseconds']! as int,
+        phasedAssetDepsUpdateMilliseconds:
+            json['phasedAssetDepsUpdateMilliseconds']! as int,
+        matchingPrimaryInputsMilliseconds:
+            json['matchingPrimaryInputsMilliseconds']! as int,
+        buildShouldRunMilliseconds: json['buildShouldRunMilliseconds']! as int,
         trackedActionMilliseconds: json['trackedActionMilliseconds']! as int,
+        trackedActionWallMilliseconds:
+            json['trackedActionWallMilliseconds']! as int,
         trackedPhaseMilliseconds: json['trackedPhaseMilliseconds']! as int,
         trackedBuilderActionCount: json['trackedBuilderActionCount']! as int,
         trackedBuildPhaseCount: json['trackedBuildPhaseCount']! as int,
@@ -91,6 +119,11 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphUpdateMilliseconds,
+    required int runPhasesMilliseconds,
+    required int phasedAssetDepsUpdateMilliseconds,
+    required int matchingPrimaryInputsMilliseconds,
+    required int buildShouldRunMilliseconds,
     required int assetGraphPersistMilliseconds,
     required int cacheFlushMilliseconds,
     required int resourceDisposeMilliseconds,
@@ -106,6 +139,11 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphUpdateMilliseconds: assetGraphUpdateMilliseconds,
+        runPhasesMilliseconds: runPhasesMilliseconds,
+        phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
+        matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
+        buildShouldRunMilliseconds: buildShouldRunMilliseconds,
         assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         cacheFlushMilliseconds: cacheFlushMilliseconds,
         resourceDisposeMilliseconds: resourceDisposeMilliseconds,
@@ -120,8 +158,10 @@ class FastBuildRunProfile {
 
     try {
       var trackedActionMilliseconds = 0;
+      var trackedActionWallMilliseconds = 0;
       for (final action in performance.actions) {
         trackedActionMilliseconds += action.innerDuration.inMilliseconds;
+        trackedActionWallMilliseconds += action.duration.inMilliseconds;
       }
 
       var trackedPhaseMilliseconds = 0;
@@ -133,7 +173,13 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphUpdateMilliseconds: assetGraphUpdateMilliseconds,
+        runPhasesMilliseconds: runPhasesMilliseconds,
+        phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
+        matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
+        buildShouldRunMilliseconds: buildShouldRunMilliseconds,
         trackedActionMilliseconds: trackedActionMilliseconds,
+        trackedActionWallMilliseconds: trackedActionWallMilliseconds,
         trackedPhaseMilliseconds: trackedPhaseMilliseconds,
         trackedBuilderActionCount: performance.actions.length,
         trackedBuildPhaseCount: performance.phases.length,
@@ -151,6 +197,11 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphUpdateMilliseconds: assetGraphUpdateMilliseconds,
+        runPhasesMilliseconds: runPhasesMilliseconds,
+        phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
+        matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
+        buildShouldRunMilliseconds: buildShouldRunMilliseconds,
         assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         cacheFlushMilliseconds: cacheFlushMilliseconds,
         resourceDisposeMilliseconds: resourceDisposeMilliseconds,
@@ -167,6 +218,11 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphUpdateMilliseconds,
+    required int runPhasesMilliseconds,
+    required int phasedAssetDepsUpdateMilliseconds,
+    required int matchingPrimaryInputsMilliseconds,
+    required int buildShouldRunMilliseconds,
     required int assetGraphPersistMilliseconds,
     required int cacheFlushMilliseconds,
     required int resourceDisposeMilliseconds,
@@ -180,7 +236,13 @@ class FastBuildRunProfile {
       freshnessCheckMilliseconds: freshnessCheckMilliseconds,
       configReloadMilliseconds: configReloadMilliseconds,
       buildRunMilliseconds: buildRunMilliseconds,
+      assetGraphUpdateMilliseconds: assetGraphUpdateMilliseconds,
+      runPhasesMilliseconds: runPhasesMilliseconds,
+      phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
+      matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
+      buildShouldRunMilliseconds: buildShouldRunMilliseconds,
       trackedActionMilliseconds: 0,
+      trackedActionWallMilliseconds: 0,
       trackedPhaseMilliseconds: 0,
       trackedBuilderActionCount: 0,
       trackedBuildPhaseCount: 0,

@@ -111,7 +111,13 @@ class FastBuildSeries {
             freshnessCheckMilliseconds: freshnessCheckMilliseconds,
             configReloadMilliseconds: 0,
             buildRunMilliseconds: 0,
+            assetGraphUpdateMilliseconds: 0,
+            runPhasesMilliseconds: 0,
+            phasedAssetDepsUpdateMilliseconds: 0,
+            matchingPrimaryInputsMilliseconds: 0,
+            buildShouldRunMilliseconds: 0,
             trackedActionMilliseconds: 0,
+            trackedActionWallMilliseconds: 0,
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
@@ -145,7 +151,13 @@ class FastBuildSeries {
             freshnessCheckMilliseconds: freshnessCheckMilliseconds,
             configReloadMilliseconds: configReloadMilliseconds,
             buildRunMilliseconds: 0,
+            assetGraphUpdateMilliseconds: 0,
+            runPhasesMilliseconds: 0,
+            phasedAssetDepsUpdateMilliseconds: 0,
+            matchingPrimaryInputsMilliseconds: 0,
+            buildShouldRunMilliseconds: 0,
             trackedActionMilliseconds: 0,
+            trackedActionWallMilliseconds: 0,
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
@@ -205,6 +217,15 @@ class FastBuildSeries {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunStopwatch.elapsedMilliseconds,
+        assetGraphUpdateMilliseconds:
+            build.lastRunMetrics.assetGraphUpdateMilliseconds,
+        runPhasesMilliseconds: build.lastRunMetrics.runPhasesMilliseconds,
+        phasedAssetDepsUpdateMilliseconds:
+            build.lastRunMetrics.phasedAssetDepsUpdateMilliseconds,
+        matchingPrimaryInputsMilliseconds:
+            build.lastRunMetrics.matchingPrimaryInputsMilliseconds,
+        buildShouldRunMilliseconds:
+            build.lastRunMetrics.buildShouldRunMilliseconds,
         assetGraphPersistMilliseconds:
             build.lastRunMetrics.assetGraphPersistMilliseconds,
         cacheFlushMilliseconds: build.lastRunMetrics.cacheFlushMilliseconds,
