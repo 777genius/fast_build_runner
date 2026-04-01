@@ -49,6 +49,57 @@ final ResolversImpl _defaultResolvers = ResolversImpl(
   analysisDriverModel: AnalysisDriverModel(),
 );
 
+class FastBuildInternalMetrics {
+  final int assetGraphPersistMilliseconds;
+  final int cacheFlushMilliseconds;
+  final int resourceDisposeMilliseconds;
+  final int mergedOutputsMilliseconds;
+  final int resolverResetMilliseconds;
+  final int buildLogFinishMilliseconds;
+
+  const FastBuildInternalMetrics({
+    required this.assetGraphPersistMilliseconds,
+    required this.cacheFlushMilliseconds,
+    required this.resourceDisposeMilliseconds,
+    required this.mergedOutputsMilliseconds,
+    required this.resolverResetMilliseconds,
+    required this.buildLogFinishMilliseconds,
+  });
+
+  static const zero = FastBuildInternalMetrics(
+    assetGraphPersistMilliseconds: 0,
+    cacheFlushMilliseconds: 0,
+    resourceDisposeMilliseconds: 0,
+    mergedOutputsMilliseconds: 0,
+    resolverResetMilliseconds: 0,
+    buildLogFinishMilliseconds: 0,
+  );
+
+  FastBuildInternalMetrics copyWith({
+    int? assetGraphPersistMilliseconds,
+    int? cacheFlushMilliseconds,
+    int? resourceDisposeMilliseconds,
+    int? mergedOutputsMilliseconds,
+    int? resolverResetMilliseconds,
+    int? buildLogFinishMilliseconds,
+  }) {
+    return FastBuildInternalMetrics(
+      assetGraphPersistMilliseconds:
+          assetGraphPersistMilliseconds ?? this.assetGraphPersistMilliseconds,
+      cacheFlushMilliseconds:
+          cacheFlushMilliseconds ?? this.cacheFlushMilliseconds,
+      resourceDisposeMilliseconds:
+          resourceDisposeMilliseconds ?? this.resourceDisposeMilliseconds,
+      mergedOutputsMilliseconds:
+          mergedOutputsMilliseconds ?? this.mergedOutputsMilliseconds,
+      resolverResetMilliseconds:
+          resolverResetMilliseconds ?? this.resolverResetMilliseconds,
+      buildLogFinishMilliseconds:
+          buildLogFinishMilliseconds ?? this.buildLogFinishMilliseconds,
+    );
+  }
+}
+
 /// Narrow fork of upstream `Build` for custom watch runtime experiments.
 ///
 /// The only behavior change is optional deferral of asset graph persistence so
@@ -125,6 +176,7 @@ class FastBuild {
 
   /// The build output.
   BuildOutputReader? _buildOutputReader;
+  FastBuildInternalMetrics _lastRunMetrics = FastBuildInternalMetrics.zero;
 
   FastBuild({
     required this.buildPlan,
@@ -161,7 +213,10 @@ class FastBuild {
         processedOutputs: processedOutputs,
       );
 
+  FastBuildInternalMetrics get lastRunMetrics => _lastRunMetrics;
+
   Future<BuildResult> run(Map<AssetId, ChangeType> updates) async {
+    _lastRunMetrics = FastBuildInternalMetrics.zero;
     buildLog.configuration = buildLog.configuration.rebuild(
       (b) => b..singleOutputPackage = buildPackages.singleOutputPackage,
     );
@@ -193,14 +248,20 @@ class FastBuild {
         result = result.copyWith(status: BuildStatus.failure);
       }
     }
+    final cacheFlushStopwatch = Stopwatch()..start();
     readerWriter.cache.flush();
+    cacheFlushStopwatch.stop();
+    final resourceDisposeStopwatch = Stopwatch()..start();
     await resourceManager.disposeAll();
+    resourceDisposeStopwatch.stop();
 
     // If requested, create output directories. If that fails, fail the build.
+    var mergedOutputsMilliseconds = 0;
     if (buildPlan.buildOptions.buildDirs.any(
           (target) => target.outputLocation?.path.isNotEmpty ?? false,
         ) &&
         result.status == BuildStatus.success) {
+      final mergedOutputsStopwatch = Stopwatch()..start();
       if (!await createMergedOutputDirectories(
         buildPackages: buildPackages,
         outputSymlinksOnly: buildOptions.outputSymlinksOnly,
@@ -213,14 +274,27 @@ class FastBuild {
           failureType: FailureType.cantCreate,
         );
       }
+      mergedOutputsStopwatch.stop();
+      mergedOutputsMilliseconds = mergedOutputsStopwatch.elapsedMilliseconds;
     }
 
+    final resolverResetStopwatch = Stopwatch()..start();
     resolvers.reset();
+    resolverResetStopwatch.stop();
+    final buildLogFinishStopwatch = Stopwatch()..start();
     result = result.copyWith(
       errors: buildLog.finishBuild(
         result: result.status == BuildStatus.success,
         outputs: result.outputs.length,
       ),
+    );
+    buildLogFinishStopwatch.stop();
+    _lastRunMetrics = _lastRunMetrics.copyWith(
+      cacheFlushMilliseconds: cacheFlushStopwatch.elapsedMilliseconds,
+      resourceDisposeMilliseconds: resourceDisposeStopwatch.elapsedMilliseconds,
+      mergedOutputsMilliseconds: mergedOutputsMilliseconds,
+      resolverResetMilliseconds: resolverResetStopwatch.elapsedMilliseconds,
+      buildLogFinishMilliseconds: buildLogFinishStopwatch.elapsedMilliseconds,
     );
     return result;
   }
@@ -254,6 +328,7 @@ class FastBuild {
     final done = Completer<BuildResult>();
     runZonedGuarded(
       () async {
+        var assetGraphPersistMilliseconds = 0;
         if (!assetGraph.cleanBuild) {
           await _updateAssetGraph(updates);
         }
@@ -275,10 +350,14 @@ class FastBuild {
                 );
         assetGraph.previousPhasedAssetDeps = updatedPhasedAssetDeps;
         if (persistAssetGraphOnEveryBuild) {
+          final assetGraphPersistStopwatch = Stopwatch()..start();
           await readerWriter.writeAsBytes(
             AssetId(buildPackages.outputRoot, assetGraphPath),
             assetGraph.serialize(),
           );
+          assetGraphPersistStopwatch.stop();
+          assetGraphPersistMilliseconds =
+              assetGraphPersistStopwatch.elapsedMilliseconds;
         }
         // Phases options don't change during a build series, so for all
         // subsequent builds "previous" and current build options digests
@@ -305,6 +384,9 @@ class FastBuild {
         }
 
         if (!done.isCompleted) done.complete(result);
+        _lastRunMetrics = _lastRunMetrics.copyWith(
+          assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
+        );
       },
       (e, st) {
         if (!done.isCompleted) {

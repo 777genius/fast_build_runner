@@ -12,6 +12,12 @@ class FastBuildRunProfile {
   final int trackedPhaseMilliseconds;
   final int trackedBuilderActionCount;
   final int trackedBuildPhaseCount;
+  final int assetGraphPersistMilliseconds;
+  final int cacheFlushMilliseconds;
+  final int resourceDisposeMilliseconds;
+  final int mergedOutputsMilliseconds;
+  final int resolverResetMilliseconds;
+  final int buildLogFinishMilliseconds;
   final int assetGraphSerializeProbeMilliseconds;
   final int assetGraphSerializeProbeBytes;
 
@@ -23,6 +29,12 @@ class FastBuildRunProfile {
     required this.trackedPhaseMilliseconds,
     required this.trackedBuilderActionCount,
     required this.trackedBuildPhaseCount,
+    required this.assetGraphPersistMilliseconds,
+    required this.cacheFlushMilliseconds,
+    required this.resourceDisposeMilliseconds,
+    required this.mergedOutputsMilliseconds,
+    required this.resolverResetMilliseconds,
+    required this.buildLogFinishMilliseconds,
     required this.assetGraphSerializeProbeMilliseconds,
     required this.assetGraphSerializeProbeBytes,
   });
@@ -38,6 +50,12 @@ class FastBuildRunProfile {
     'trackedPhaseMilliseconds': trackedPhaseMilliseconds,
     'trackedBuilderActionCount': trackedBuilderActionCount,
     'trackedBuildPhaseCount': trackedBuildPhaseCount,
+    'assetGraphPersistMilliseconds': assetGraphPersistMilliseconds,
+    'cacheFlushMilliseconds': cacheFlushMilliseconds,
+    'resourceDisposeMilliseconds': resourceDisposeMilliseconds,
+    'mergedOutputsMilliseconds': mergedOutputsMilliseconds,
+    'resolverResetMilliseconds': resolverResetMilliseconds,
+    'buildLogFinishMilliseconds': buildLogFinishMilliseconds,
     'assetGraphSerializeProbeMilliseconds': assetGraphSerializeProbeMilliseconds,
     'assetGraphSerializeProbeBytes': assetGraphSerializeProbeBytes,
     'untrackedBuildRunMilliseconds': untrackedBuildRunMilliseconds,
@@ -52,6 +70,16 @@ class FastBuildRunProfile {
         trackedPhaseMilliseconds: json['trackedPhaseMilliseconds']! as int,
         trackedBuilderActionCount: json['trackedBuilderActionCount']! as int,
         trackedBuildPhaseCount: json['trackedBuildPhaseCount']! as int,
+        assetGraphPersistMilliseconds:
+            json['assetGraphPersistMilliseconds']! as int,
+        cacheFlushMilliseconds: json['cacheFlushMilliseconds']! as int,
+        resourceDisposeMilliseconds:
+            json['resourceDisposeMilliseconds']! as int,
+        mergedOutputsMilliseconds: json['mergedOutputsMilliseconds']! as int,
+        resolverResetMilliseconds:
+            json['resolverResetMilliseconds']! as int,
+        buildLogFinishMilliseconds:
+            json['buildLogFinishMilliseconds']! as int,
         assetGraphSerializeProbeMilliseconds:
             json['assetGraphSerializeProbeMilliseconds']! as int,
         assetGraphSerializeProbeBytes:
@@ -63,6 +91,12 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphPersistMilliseconds,
+    required int cacheFlushMilliseconds,
+    required int resourceDisposeMilliseconds,
+    required int mergedOutputsMilliseconds,
+    required int resolverResetMilliseconds,
+    required int buildLogFinishMilliseconds,
     required int assetGraphSerializeProbeMilliseconds,
     required int assetGraphSerializeProbeBytes,
   }) {
@@ -72,6 +106,12 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
+        cacheFlushMilliseconds: cacheFlushMilliseconds,
+        resourceDisposeMilliseconds: resourceDisposeMilliseconds,
+        mergedOutputsMilliseconds: mergedOutputsMilliseconds,
+        resolverResetMilliseconds: resolverResetMilliseconds,
+        buildLogFinishMilliseconds: buildLogFinishMilliseconds,
         assetGraphSerializeProbeMilliseconds:
             assetGraphSerializeProbeMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
@@ -97,6 +137,12 @@ class FastBuildRunProfile {
         trackedPhaseMilliseconds: trackedPhaseMilliseconds,
         trackedBuilderActionCount: performance.actions.length,
         trackedBuildPhaseCount: performance.phases.length,
+        assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
+        cacheFlushMilliseconds: cacheFlushMilliseconds,
+        resourceDisposeMilliseconds: resourceDisposeMilliseconds,
+        mergedOutputsMilliseconds: mergedOutputsMilliseconds,
+        resolverResetMilliseconds: resolverResetMilliseconds,
+        buildLogFinishMilliseconds: buildLogFinishMilliseconds,
         assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
@@ -105,6 +151,12 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
+        cacheFlushMilliseconds: cacheFlushMilliseconds,
+        resourceDisposeMilliseconds: resourceDisposeMilliseconds,
+        mergedOutputsMilliseconds: mergedOutputsMilliseconds,
+        resolverResetMilliseconds: resolverResetMilliseconds,
+        buildLogFinishMilliseconds: buildLogFinishMilliseconds,
         assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
@@ -115,6 +167,12 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphPersistMilliseconds,
+    required int cacheFlushMilliseconds,
+    required int resourceDisposeMilliseconds,
+    required int mergedOutputsMilliseconds,
+    required int resolverResetMilliseconds,
+    required int buildLogFinishMilliseconds,
     required int assetGraphSerializeProbeMilliseconds,
     required int assetGraphSerializeProbeBytes,
   }) {
@@ -126,6 +184,12 @@ class FastBuildRunProfile {
       trackedPhaseMilliseconds: 0,
       trackedBuilderActionCount: 0,
       trackedBuildPhaseCount: 0,
+      assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
+      cacheFlushMilliseconds: cacheFlushMilliseconds,
+      resourceDisposeMilliseconds: resourceDisposeMilliseconds,
+      mergedOutputsMilliseconds: mergedOutputsMilliseconds,
+      resolverResetMilliseconds: resolverResetMilliseconds,
+      buildLogFinishMilliseconds: buildLogFinishMilliseconds,
       assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
       assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
     );

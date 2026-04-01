@@ -358,6 +358,78 @@ class FastWatchBenchmarkResult {
         'assetGraphSerializeProbeBytes',
       );
 
+  int? get dartIncrementalAssetGraphPersistMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'assetGraphPersistMilliseconds',
+      );
+
+  int? get rustIncrementalAssetGraphPersistMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'assetGraphPersistMilliseconds',
+      );
+
+  int? get dartIncrementalCacheFlushMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'cacheFlushMilliseconds',
+      );
+
+  int? get rustIncrementalCacheFlushMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'cacheFlushMilliseconds',
+      );
+
+  int? get dartIncrementalResourceDisposeMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'resourceDisposeMilliseconds',
+      );
+
+  int? get rustIncrementalResourceDisposeMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'resourceDisposeMilliseconds',
+      );
+
+  int? get dartIncrementalMergedOutputsMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'mergedOutputsMilliseconds',
+      );
+
+  int? get rustIncrementalMergedOutputsMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'mergedOutputsMilliseconds',
+      );
+
+  int? get dartIncrementalResolverResetMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'resolverResetMilliseconds',
+      );
+
+  int? get rustIncrementalResolverResetMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'resolverResetMilliseconds',
+      );
+
+  int? get dartIncrementalBuildLogFinishMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildLogFinishMilliseconds',
+      );
+
+  int? get rustIncrementalBuildLogFinishMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildLogFinishMilliseconds',
+      );
+
   static int? _incrementalProfileMetric(
     Map<String, Object?>? profile,
     String key,
@@ -432,6 +504,30 @@ class FastWatchBenchmarkResult {
         dartIncrementalAssetGraphSerializeProbeBytes,
     'rustIncrementalAssetGraphSerializeProbeBytes':
         rustIncrementalAssetGraphSerializeProbeBytes,
+    'dartIncrementalAssetGraphPersistMilliseconds':
+        dartIncrementalAssetGraphPersistMilliseconds,
+    'rustIncrementalAssetGraphPersistMilliseconds':
+        rustIncrementalAssetGraphPersistMilliseconds,
+    'dartIncrementalCacheFlushMilliseconds':
+        dartIncrementalCacheFlushMilliseconds,
+    'rustIncrementalCacheFlushMilliseconds':
+        rustIncrementalCacheFlushMilliseconds,
+    'dartIncrementalResourceDisposeMilliseconds':
+        dartIncrementalResourceDisposeMilliseconds,
+    'rustIncrementalResourceDisposeMilliseconds':
+        rustIncrementalResourceDisposeMilliseconds,
+    'dartIncrementalMergedOutputsMilliseconds':
+        dartIncrementalMergedOutputsMilliseconds,
+    'rustIncrementalMergedOutputsMilliseconds':
+        rustIncrementalMergedOutputsMilliseconds,
+    'dartIncrementalResolverResetMilliseconds':
+        dartIncrementalResolverResetMilliseconds,
+    'rustIncrementalResolverResetMilliseconds':
+        rustIncrementalResolverResetMilliseconds,
+    'dartIncrementalBuildLogFinishMilliseconds':
+        dartIncrementalBuildLogFinishMilliseconds,
+    'rustIncrementalBuildLogFinishMilliseconds':
+        rustIncrementalBuildLogFinishMilliseconds,
     'dartTotalWatchCollectionMilliseconds':
         dartTotalWatchCollectionMilliseconds,
     'rustTotalWatchCollectionMilliseconds':
@@ -522,6 +618,30 @@ class FastWatchBenchmarkResult {
         'dartIncrementalAssetGraphSerializeProbeBytes: $dartIncrementalAssetGraphSerializeProbeBytes bytes',
       if (rustIncrementalAssetGraphSerializeProbeBytes != null)
         'rustIncrementalAssetGraphSerializeProbeBytes: $rustIncrementalAssetGraphSerializeProbeBytes bytes',
+      if (dartIncrementalAssetGraphPersistMilliseconds != null)
+        'dartIncrementalAssetGraphPersistMilliseconds: $dartIncrementalAssetGraphPersistMilliseconds ms',
+      if (rustIncrementalAssetGraphPersistMilliseconds != null)
+        'rustIncrementalAssetGraphPersistMilliseconds: $rustIncrementalAssetGraphPersistMilliseconds ms',
+      if (dartIncrementalCacheFlushMilliseconds != null)
+        'dartIncrementalCacheFlushMilliseconds: $dartIncrementalCacheFlushMilliseconds ms',
+      if (rustIncrementalCacheFlushMilliseconds != null)
+        'rustIncrementalCacheFlushMilliseconds: $rustIncrementalCacheFlushMilliseconds ms',
+      if (dartIncrementalResourceDisposeMilliseconds != null)
+        'dartIncrementalResourceDisposeMilliseconds: $dartIncrementalResourceDisposeMilliseconds ms',
+      if (rustIncrementalResourceDisposeMilliseconds != null)
+        'rustIncrementalResourceDisposeMilliseconds: $rustIncrementalResourceDisposeMilliseconds ms',
+      if (dartIncrementalMergedOutputsMilliseconds != null)
+        'dartIncrementalMergedOutputsMilliseconds: $dartIncrementalMergedOutputsMilliseconds ms',
+      if (rustIncrementalMergedOutputsMilliseconds != null)
+        'rustIncrementalMergedOutputsMilliseconds: $rustIncrementalMergedOutputsMilliseconds ms',
+      if (dartIncrementalResolverResetMilliseconds != null)
+        'dartIncrementalResolverResetMilliseconds: $dartIncrementalResolverResetMilliseconds ms',
+      if (rustIncrementalResolverResetMilliseconds != null)
+        'rustIncrementalResolverResetMilliseconds: $rustIncrementalResolverResetMilliseconds ms',
+      if (dartIncrementalBuildLogFinishMilliseconds != null)
+        'dartIncrementalBuildLogFinishMilliseconds: $dartIncrementalBuildLogFinishMilliseconds ms',
+      if (rustIncrementalBuildLogFinishMilliseconds != null)
+        'rustIncrementalBuildLogFinishMilliseconds: $rustIncrementalBuildLogFinishMilliseconds ms',
       if (rustWatchCollectionSpeedupVsDart != null)
         'rustWatchCollectionSpeedupVsDart: ${rustWatchCollectionSpeedupVsDart!.toStringAsFixed(2)}x',
       if (dartSpeedupVsUpstream != null)

@@ -115,6 +115,12 @@ class FastBuildSeries {
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
+            assetGraphPersistMilliseconds: 0,
+            cacheFlushMilliseconds: 0,
+            resourceDisposeMilliseconds: 0,
+            mergedOutputsMilliseconds: 0,
+            resolverResetMilliseconds: 0,
+            buildLogFinishMilliseconds: 0,
             assetGraphSerializeProbeMilliseconds: 0,
             assetGraphSerializeProbeBytes: 0,
           ),
@@ -143,6 +149,12 @@ class FastBuildSeries {
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
+            assetGraphPersistMilliseconds: 0,
+            cacheFlushMilliseconds: 0,
+            resourceDisposeMilliseconds: 0,
+            mergedOutputsMilliseconds: 0,
+            resolverResetMilliseconds: 0,
+            buildLogFinishMilliseconds: 0,
             assetGraphSerializeProbeMilliseconds: 0,
             assetGraphSerializeProbeBytes: 0,
           ),
@@ -193,6 +205,17 @@ class FastBuildSeries {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunStopwatch.elapsedMilliseconds,
+        assetGraphPersistMilliseconds:
+            build.lastRunMetrics.assetGraphPersistMilliseconds,
+        cacheFlushMilliseconds: build.lastRunMetrics.cacheFlushMilliseconds,
+        resourceDisposeMilliseconds:
+            build.lastRunMetrics.resourceDisposeMilliseconds,
+        mergedOutputsMilliseconds:
+            build.lastRunMetrics.mergedOutputsMilliseconds,
+        resolverResetMilliseconds:
+            build.lastRunMetrics.resolverResetMilliseconds,
+        buildLogFinishMilliseconds:
+            build.lastRunMetrics.buildLogFinishMilliseconds,
         assetGraphSerializeProbeMilliseconds:
             assetGraphSerializeProbeStopwatch.elapsedMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphBytes.length,
