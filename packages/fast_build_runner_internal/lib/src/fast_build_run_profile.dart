@@ -113,8 +113,5 @@ class FastBuildRunOutcome {
   final BuildResult result;
   final FastBuildRunProfile profile;
 
-  const FastBuildRunOutcome({
-    required this.result,
-    required this.profile,
-  });
+  const FastBuildRunOutcome({required this.result, required this.profile});
 }

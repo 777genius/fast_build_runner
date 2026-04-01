@@ -15,6 +15,7 @@ import 'fast_build_plan.dart';
 import 'fast_build_run_profile.dart';
 import 'fast_build_series.dart';
 import 'fast_watch_scheduler.dart';
+import 'project_mutation_profile.dart';
 import 'rust_daemon_client.dart';
 import 'watch_alpha_result.dart';
 import 'watch_batch_resolver.dart';
@@ -46,9 +47,13 @@ class FastWatchAlphaSession {
     required String generatedFileRelativePath,
     required String generatedEntrypointPath,
     required String runDirectory,
+    required String? mutationProfilePath,
     required bool mutateBuildScriptBeforeIncremental,
     required bool simulateDroppedSourceUpdateOnIncremental,
   }) async {
+    final mutationProfile = mutationProfilePath == null
+        ? null
+        : ProjectMutationProfile.load(mutationProfilePath);
     if (sourceEngine == 'upstream') {
       return _runUpstreamWatchSession(
         incrementalCycles: incrementalCycles,
@@ -58,8 +63,8 @@ class FastWatchAlphaSession {
         generatedFileRelativePath: generatedFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
-        mutateBuildScriptBeforeIncremental:
-            mutateBuildScriptBeforeIncremental,
+        mutationProfile: mutationProfile,
+        mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       );
     }
 
@@ -116,10 +121,10 @@ class FastWatchAlphaSession {
     final scheduler = FastWatchScheduler<FastBuildRunOutcome>(
       onBuild: (updates, {required skipBuildScriptFreshnessCheck}) =>
           buildSeries.run(
-        updates,
-        recentlyBootstrapped: false,
-        skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
-      ),
+            updates,
+            recentlyBootstrapped: false,
+            skipBuildScriptFreshnessCheck: skipBuildScriptFreshnessCheck,
+          ),
       postBuildSettleDelay: Duration(milliseconds: settleBuildDelayMs),
     );
     final sourceAssetId = AssetId(packageName, sourceFileRelativePath);
@@ -143,6 +148,7 @@ class FastWatchAlphaSession {
         buildResult: initialBuild.result,
         buildProfile: initialBuild.profile,
         generatedFileRelativePath: generatedFileRelativePath,
+        expectedGeneratedMarkers: const [],
       );
 
       resultSubscription = scheduler.results.listen(buildResults.add);
@@ -198,6 +204,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          mutationProfile: mutationProfile,
           noiseFilesPerCycle: noiseFilesPerCycle,
           keepAlive: cycleIndex + 1 < incrementalCycles,
           mutateBuildScriptBeforeIncremental:
@@ -272,6 +279,10 @@ class FastWatchAlphaSession {
                 buildResult: scheduledBuild.result.result,
                 buildProfile: scheduledBuild.result.profile,
                 generatedFileRelativePath: generatedFileRelativePath,
+                expectedGeneratedMarkers: _expectedGeneratedMarkers(
+                  mutationProfile: mutationProfile,
+                  cycleIndex: cycleIndex,
+                ),
               ),
             );
           }
@@ -293,6 +304,10 @@ class FastWatchAlphaSession {
               buildResult: scheduledBuild.result.result,
               buildProfile: scheduledBuild.result.profile,
               generatedFileRelativePath: generatedFileRelativePath,
+              expectedGeneratedMarkers: _expectedGeneratedMarkers(
+                mutationProfile: mutationProfile,
+                cycleIndex: buildIndex,
+              ),
             ),
           );
         }
@@ -401,6 +416,7 @@ class FastWatchAlphaSession {
     required String generatedFileRelativePath,
     required String generatedEntrypointPath,
     required String runDirectory,
+    required ProjectMutationProfile? mutationProfile,
     required bool mutateBuildScriptBeforeIncremental,
   }) async {
     final buildPlan = await BuildPlan.load(
@@ -476,6 +492,7 @@ class FastWatchAlphaSession {
         elapsedMilliseconds: initialStopwatch.elapsedMilliseconds,
         buildResult: buildResults.current,
         generatedFileRelativePath: generatedFileRelativePath,
+        expectedGeneratedMarkers: const [],
       );
 
       final incrementalResults = <FastBuildStepResult>[];
@@ -484,6 +501,7 @@ class FastWatchAlphaSession {
         await _performWatchMutation(
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          mutationProfile: mutationProfile,
           noiseFilesPerCycle: noiseFilesPerCycle,
           mutateBuildScriptBeforeIncremental:
               cycleIndex == 0 && mutateBuildScriptBeforeIncremental,
@@ -507,6 +525,10 @@ class FastWatchAlphaSession {
             elapsedMilliseconds: incrementalStopwatch.elapsedMilliseconds,
             buildResult: buildResults.current,
             generatedFileRelativePath: generatedFileRelativePath,
+            expectedGeneratedMarkers: _expectedGeneratedMarkers(
+              mutationProfile: mutationProfile,
+              cycleIndex: cycleIndex,
+            ),
           ),
         );
       }
@@ -582,6 +604,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required ProjectMutationProfile? mutationProfile,
     required int noiseFilesPerCycle,
     required bool keepAlive,
     required bool mutateBuildScriptBeforeIncremental,
@@ -595,6 +618,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          mutationProfile: mutationProfile,
           noiseFilesPerCycle: noiseFilesPerCycle,
           keepAlive: keepAlive,
           mutateBuildScriptBeforeIncremental:
@@ -608,6 +632,7 @@ class FastWatchAlphaSession {
           packageName: packageName,
           sourceFileRelativePath: sourceFileRelativePath,
           generatedEntrypointPath: generatedEntrypointPath,
+          mutationProfile: mutationProfile,
           noiseFilesPerCycle: noiseFilesPerCycle,
           mutateBuildScriptBeforeIncremental:
               mutateBuildScriptBeforeIncremental,
@@ -621,6 +646,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required ProjectMutationProfile? mutationProfile,
     required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
@@ -635,6 +661,7 @@ class FastWatchAlphaSession {
       mutate: () => _performWatchMutation(
         sourceFileRelativePath: sourceFileRelativePath,
         generatedEntrypointPath: generatedEntrypointPath,
+        mutationProfile: mutationProfile,
         noiseFilesPerCycle: noiseFilesPerCycle,
         mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
         cycleIndex: cycleIndex,
@@ -654,6 +681,7 @@ class FastWatchAlphaSession {
     required String packageName,
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required ProjectMutationProfile? mutationProfile,
     required int noiseFilesPerCycle,
     required bool keepAlive,
     required bool mutateBuildScriptBeforeIncremental,
@@ -672,6 +700,7 @@ class FastWatchAlphaSession {
     await _performWatchMutation(
       sourceFileRelativePath: sourceFileRelativePath,
       generatedEntrypointPath: generatedEntrypointPath,
+      mutationProfile: mutationProfile,
       noiseFilesPerCycle: noiseFilesPerCycle,
       mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       cycleIndex: cycleIndex,
@@ -711,11 +740,16 @@ class FastWatchAlphaSession {
   Future<void> _performWatchMutation({
     required String sourceFileRelativePath,
     required String generatedEntrypointPath,
+    required ProjectMutationProfile? mutationProfile,
     required int noiseFilesPerCycle,
     required bool mutateBuildScriptBeforeIncremental,
     required int cycleIndex,
   }) async {
-    await _mutateFixtureSource(sourceFileRelativePath, cycleIndex);
+    await _mutateSource(
+      sourceFileRelativePath: sourceFileRelativePath,
+      cycleIndex: cycleIndex,
+      mutationProfile: mutationProfile,
+    );
     await Future<void>.delayed(const Duration(milliseconds: 50));
     await _appendSourceBurstComment(sourceFileRelativePath, cycleIndex);
     if (noiseFilesPerCycle > 0) {
@@ -825,7 +859,9 @@ class FastWatchAlphaSession {
     if (changedPaths.isEmpty) {
       return false;
     }
-    final normalizedEntrypointPath = File(generatedEntrypointPath).absolute.path;
+    final normalizedEntrypointPath = File(
+      generatedEntrypointPath,
+    ).absolute.path;
     for (final changedPath in changedPaths) {
       final absolutePath = File(changedPath).absolute.path;
       final relativePath = _relativePath(absolutePath);
@@ -848,6 +884,7 @@ class FastWatchAlphaSession {
     required BuildResult buildResult,
     FastBuildRunProfile? buildProfile,
     required String generatedFileRelativePath,
+    required List<String> expectedGeneratedMarkers,
   }) {
     final generatedFile = File(
       p.join(Directory.current.path, generatedFileRelativePath),
@@ -863,11 +900,32 @@ class FastWatchAlphaSession {
       outputs: buildResult.outputs.map((assetId) => '$assetId').toList(),
       errors: buildResult.errors.toList(),
       generatedFileExists: generatedFile.existsSync(),
-      generatedFileHasMutation: RegExp(
-        r'(nickname|country|isVerified|extraField\d+)',
-      ).hasMatch(generatedContent),
+      generatedFileHasMutation: _generatedFileHasExpectedMarkers(
+        generatedContent,
+        expectedGeneratedMarkers,
+      ),
       profile: buildProfile?.toJson(),
     );
+  }
+
+  bool _generatedFileHasExpectedMarkers(
+    String generatedContent,
+    List<String> expectedGeneratedMarkers,
+  ) {
+    if (expectedGeneratedMarkers.isEmpty) {
+      return false;
+    }
+    return expectedGeneratedMarkers.every(generatedContent.contains);
+  }
+
+  List<String> _expectedGeneratedMarkers({
+    required ProjectMutationProfile? mutationProfile,
+    required int cycleIndex,
+  }) {
+    if (mutationProfile != null) {
+      return mutationProfile.stepForCycle(cycleIndex).generatedMarkers;
+    }
+    return [_fieldForCycle(cycleIndex).name];
   }
 
   String? _failureType(BuildResult buildResult) {
@@ -934,18 +992,20 @@ class FastWatchAlphaSession {
     }
   }
 
-  Future<void> _mutateFixtureSource(
-    String sourceFileRelativePath,
-    int cycleIndex,
-  ) async {
+  Future<void> _mutateSource({
+    required String sourceFileRelativePath,
+    required int cycleIndex,
+    required ProjectMutationProfile? mutationProfile,
+  }) async {
     final file = File(p.join(Directory.current.path, sourceFileRelativePath));
     final original = file.readAsStringSync();
-    final field = _fieldForCycle(cycleIndex);
-    final updated = _applyFieldMutation(
-      original: original,
-      fieldName: field.name,
-      fieldType: field.type,
-    );
+    final updated = mutationProfile == null
+        ? _applyFieldMutation(
+            original: original,
+            fieldName: _fieldForCycle(cycleIndex).name,
+            fieldType: _fieldForCycle(cycleIndex).type,
+          )
+        : mutationProfile.stepForCycle(cycleIndex).apply(original);
     file.writeAsStringSync(updated);
   }
 

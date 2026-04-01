@@ -10,6 +10,7 @@ import 'package:yaml/yaml.dart';
 
 import 'fast_bootstrap_generator.dart';
 import 'fast_bootstrapper.dart';
+import 'project_mutation_profile.dart';
 import 'upstream_pin.dart';
 import 'watch_alpha_request.dart';
 import 'watch_alpha_result.dart';
@@ -94,6 +95,26 @@ class FastWatchAlphaRunner {
         incrementalBuilds: const [],
       );
     }
+    if (request.mutationProfilePath != null && request.extraFixtureModels > 0) {
+      return FastWatchAlphaResult(
+        status: 'failure',
+        sourceEngine: request.sourceEngine,
+        upstreamCommit: actualCommit,
+        generatedEntrypointPath: '',
+        runDirectory: '',
+        warnings: const [],
+        errors: const [
+          'extraFixtureModels is only supported for the bundled synthetic fixture.',
+        ],
+        observedEvents: const [],
+        mergedUpdates: const [],
+        observedEventBatches: const [],
+        mergedUpdateBatches: const [],
+        initialBuild: null,
+        incrementalBuild: null,
+        incrementalBuilds: const [],
+      );
+    }
     if (request.settleBuildDelayMs < 0) {
       return FastWatchAlphaResult(
         status: 'failure',
@@ -132,6 +153,9 @@ class FastWatchAlphaRunner {
         incrementalBuilds: const [],
       );
     }
+    final mutationProfile = request.mutationProfilePath == null
+        ? null
+        : ProjectMutationProfile.load(request.mutationProfilePath!);
 
     final runDirectory = await _createRunDirectory(request.workDirectoryPath);
     final entrypointPath = p.join(runDirectory.path, entrypointScriptPath);
@@ -150,6 +174,10 @@ class FastWatchAlphaRunner {
       final packageName = _readPackageName(
         File(p.join(runDirectory.path, 'pubspec.yaml')),
       );
+      final sourceFileRelativePath =
+          mutationProfile?.sourceFileRelativePath ?? 'lib/person.dart';
+      final generatedFileRelativePath =
+          mutationProfile?.generatedFileRelativePath ?? 'lib/person.g.dart';
       await FastBootstrapGenerator().generate(
         projectDirectory: runDirectory.path,
         outputPath: entrypointPath,
@@ -194,8 +222,8 @@ class FastWatchAlphaRunner {
             '--mode=watch-alpha',
             '--project-dir=${runDirectory.path}',
             '--package-name=$packageName',
-            '--source-file=lib/person.dart',
-            '--generated-file=lib/person.g.dart',
+            '--source-file=$sourceFileRelativePath',
+            '--generated-file=$generatedFileRelativePath',
             '--entrypoint-script=$entrypointPath',
             '--source-engine=${request.sourceEngine}',
             '--incremental-cycles=${request.incrementalCycles}',
@@ -204,6 +232,8 @@ class FastWatchAlphaRunner {
             '--settle-build-delay-ms=${request.settleBuildDelayMs}',
             '--trust-build-script-freshness=${request.trustBuildScriptFreshness}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
+            if (request.mutationProfilePath != null)
+              '--mutation-profile=${request.mutationProfilePath}',
             if (request.mutateBuildScriptBeforeIncremental)
               '--mutate-build-script-before-incremental=true',
             if (request.simulateDroppedSourceUpdateOnIncremental)
@@ -242,7 +272,10 @@ class FastWatchAlphaRunner {
     } finally {
       if (!request.keepRunDirectory) {
         final resultFile = File(
-          p.join(runDirectory.path, 'lib', 'person.g.dart'),
+          p.join(
+            runDirectory.path,
+            mutationProfile?.generatedFileRelativePath ?? 'lib/person.g.dart',
+          ),
         );
         final keepForInspection = !resultFile.existsSync();
         if (!keepForInspection && runDirectory.existsSync()) {
@@ -355,17 +388,61 @@ class $className {
   }
 
   Future<void> _runPubGet(String projectDirectory) async {
-    final result = await Process.run(Platform.resolvedExecutable, [
-      'pub',
-      'get',
-    ], workingDirectory: projectDirectory);
+    final pubspec = File(p.join(projectDirectory, 'pubspec.yaml'));
+    final isFlutterProject = _isFlutterProject(pubspec);
+    final command = await _pubGetCommand(isFlutterProject);
+    final result = await Process.run(
+      command.executable,
+      command.arguments,
+      workingDirectory: projectDirectory,
+    );
     if (result.exitCode != 0) {
       throw StateError(
-        'dart pub get failed in $projectDirectory\n'
+        '${command.displayName} failed in $projectDirectory\n'
         'stdout:\n${result.stdout}\n'
         'stderr:\n${result.stderr}',
       );
     }
+  }
+
+  bool _isFlutterProject(File pubspecFile) {
+    final yaml = loadYaml(pubspecFile.readAsStringSync()) as YamlMap;
+    final dependencies = yaml['dependencies'];
+    if (dependencies is! YamlMap) {
+      return false;
+    }
+    final flutter = dependencies['flutter'];
+    return flutter is YamlMap && flutter['sdk'] == 'flutter';
+  }
+
+  Future<_PubCommand> _pubGetCommand(bool isFlutterProject) async {
+    if (!isFlutterProject) {
+      return _PubCommand(
+        executable: Platform.resolvedExecutable,
+        arguments: const ['pub', 'get'],
+        displayName: 'dart pub get',
+      );
+    }
+
+    final hasFvm = await _commandExists('fvm');
+    if (hasFvm) {
+      return const _PubCommand(
+        executable: 'fvm',
+        arguments: ['flutter', 'pub', 'get'],
+        displayName: 'fvm flutter pub get',
+      );
+    }
+
+    return const _PubCommand(
+      executable: 'flutter',
+      arguments: ['pub', 'get'],
+      displayName: 'flutter pub get',
+    );
+  }
+
+  Future<bool> _commandExists(String executable) async {
+    final result = await Process.run('which', [executable]);
+    return result.exitCode == 0;
   }
 
   String _readPackageName(File pubspecFile) {
@@ -413,4 +490,16 @@ class $className {
       );
     pubspecFile.writeAsStringSync(patched.toString());
   }
+}
+
+class _PubCommand {
+  final String executable;
+  final List<String> arguments;
+  final String displayName;
+
+  const _PubCommand({
+    required this.executable,
+    required this.arguments,
+    required this.displayName,
+  });
 }

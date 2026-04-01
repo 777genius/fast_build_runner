@@ -48,6 +48,7 @@ class FastWatchBenchmarkRunner {
           fixtureTemplatePath: request.fixtureTemplatePath,
           workDirectoryPath: p.join(workDirectoryPath, 'run-${i + 1}'),
           keepRunDirectory: request.keepRunDirectory,
+          mutationProfilePath: request.mutationProfilePath,
           sourceEngine: sourceEngine,
           incrementalCycles: request.incrementalCycles,
           noiseFilesPerCycle: request.noiseFilesPerCycle,

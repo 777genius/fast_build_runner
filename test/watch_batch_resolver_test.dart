@@ -24,40 +24,46 @@ void main() {
     expect(resolution.updates, {expectedSource: ChangeType.MODIFY});
   });
 
-  test('watch batch resolver replaces an empty watcher batch with resynced updates', () async {
-    final expectedSource = AssetId('pkg', 'lib/person.dart');
+  test(
+    'watch batch resolver replaces an empty watcher batch with resynced updates',
+    () async {
+      final expectedSource = AssetId('pkg', 'lib/person.dart');
 
-    final resolution = await resolveWatchBatch(
-      watcherUpdates: const {},
-      watcherBatchWasEmpty: true,
-      expectedSourceAssetId: expectedSource,
-      collectSourceUpdates: () async => {expectedSource: ChangeType.MODIFY},
-    );
+      final resolution = await resolveWatchBatch(
+        watcherUpdates: const {},
+        watcherBatchWasEmpty: true,
+        expectedSourceAssetId: expectedSource,
+        collectSourceUpdates: () async => {expectedSource: ChangeType.MODIFY},
+      );
 
-    expect(resolution.usedResync, isTrue);
-    expect(
-      resolution.warning,
-      contains('Replaced watcher updates with filesystem resync updates.'),
-    );
-    expect(resolution.updates, {expectedSource: ChangeType.MODIFY});
-  });
+      expect(resolution.usedResync, isTrue);
+      expect(
+        resolution.warning,
+        contains('Replaced watcher updates with filesystem resync updates.'),
+      );
+      expect(resolution.updates, {expectedSource: ChangeType.MODIFY});
+    },
+  );
 
-  test('watch batch resolver replaces a batch that misses the expected source asset', () async {
-    final expectedSource = AssetId('pkg', 'lib/person.dart');
-    final otherAsset = AssetId('pkg', 'build.yaml');
+  test(
+    'watch batch resolver replaces a batch that misses the expected source asset',
+    () async {
+      final expectedSource = AssetId('pkg', 'lib/person.dart');
+      final otherAsset = AssetId('pkg', 'build.yaml');
 
-    final resolution = await resolveWatchBatch(
-      watcherUpdates: {otherAsset: ChangeType.MODIFY},
-      watcherBatchWasEmpty: false,
-      expectedSourceAssetId: expectedSource,
-      collectSourceUpdates: () async => {expectedSource: ChangeType.MODIFY},
-    );
+      final resolution = await resolveWatchBatch(
+        watcherUpdates: {otherAsset: ChangeType.MODIFY},
+        watcherBatchWasEmpty: false,
+        expectedSourceAssetId: expectedSource,
+        collectSourceUpdates: () async => {expectedSource: ChangeType.MODIFY},
+      );
 
-    expect(resolution.usedResync, isTrue);
-    expect(
-      resolution.warning,
-      contains('did not include the expected source asset'),
-    );
-    expect(resolution.updates, {expectedSource: ChangeType.MODIFY});
-  });
+      expect(resolution.usedResync, isTrue);
+      expect(
+        resolution.warning,
+        contains('did not include the expected source asset'),
+      );
+      expect(resolution.updates, {expectedSource: ChangeType.MODIFY});
+    },
+  );
 }

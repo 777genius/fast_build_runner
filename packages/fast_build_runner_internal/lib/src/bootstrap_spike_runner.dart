@@ -16,7 +16,9 @@ import 'fast_bootstrapper.dart';
 import 'upstream_pin.dart';
 
 class FastBootstrapSpikeRunner {
-  Future<FastBootstrapSpikeResult> run(FastBootstrapSpikeRequest request) async {
+  Future<FastBootstrapSpikeResult> run(
+    FastBootstrapSpikeRequest request,
+  ) async {
     final upstreamDir = p.join(request.repoRoot, 'research', 'dart-build');
     final actualCommit = await _readGitCommit(upstreamDir);
     if (actualCommit != pinnedBuildRunnerCommit) {
@@ -120,8 +122,7 @@ class FastBootstrapSpikeRunner {
             'Child process exited with code ${childResult.exitCode} without a result payload.',
           );
         }
-        final decoded =
-            jsonDecode(childResult.message) as Map<String, Object?>;
+        final decoded = jsonDecode(childResult.message) as Map<String, Object?>;
         return FastBootstrapSpikeResult.fromJson(decoded);
       } finally {
         Directory.current = previousCurrentDirectory;
@@ -139,7 +140,9 @@ class FastBootstrapSpikeRunner {
       );
     } finally {
       if (!request.keepRunDirectory) {
-        final resultFile = File(p.join(runDirectory.path, 'lib', 'person.g.dart'));
+        final resultFile = File(
+          p.join(runDirectory.path, 'lib', 'person.g.dart'),
+        );
         final keepForInspection = !resultFile.existsSync();
         if (!keepForInspection && runDirectory.existsSync()) {
           await runDirectory.delete(recursive: true);
@@ -189,7 +192,8 @@ class FastBootstrapSpikeRunner {
     await for (final entity in source.list(recursive: false)) {
       final targetPath = p.join(destination.path, p.basename(entity.path));
       if (entity is Directory) {
-        final targetDirectory = Directory(targetPath)..createSync(recursive: true);
+        final targetDirectory = Directory(targetPath)
+          ..createSync(recursive: true);
         await _copyDirectory(entity, targetDirectory);
       } else if (entity is File) {
         await File(entity.path).copy(targetPath);
@@ -198,11 +202,10 @@ class FastBootstrapSpikeRunner {
   }
 
   Future<void> _runPubGet(String projectDirectory) async {
-    final result = await Process.run(
-      Platform.resolvedExecutable,
-      ['pub', 'get'],
-      workingDirectory: projectDirectory,
-    );
+    final result = await Process.run(Platform.resolvedExecutable, [
+      'pub',
+      'get',
+    ], workingDirectory: projectDirectory);
     if (result.exitCode != 0) {
       throw StateError(
         'dart pub get failed in $projectDirectory\n'

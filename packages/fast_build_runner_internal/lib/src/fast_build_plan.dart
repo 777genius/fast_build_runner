@@ -125,7 +125,9 @@ class FastBuildPlan extends BuildPlan {
             ) ||
             restartIsNeeded ||
             previousAssetGraph.kernelDigest != kernelFreshness.digest) {
-          filesToDelete.addAll(previousAssetGraph.outputsToDelete(buildPackages));
+          filesToDelete.addAll(
+            previousAssetGraph.outputsToDelete(buildPackages),
+          );
           previousAssetGraph = null;
         }
       }
@@ -179,11 +181,10 @@ class FastBuildPlan extends BuildPlan {
         throw const CannotBuildException();
       }
 
-      final conflictsInDeps =
-          assetGraph.outputs
-              .where((n) => !buildPackages.outputPackages.contains(n.package))
-              .where(inputSources.contains)
-              .toSet();
+      final conflictsInDeps = assetGraph.outputs
+          .where((n) => !buildPackages.outputPackages.contains(n.package))
+          .where(inputSources.contains)
+          .toSet();
       if (conflictsInDeps.isNotEmpty) {
         buildLog.error(
           'There are existing files in dependencies which conflict '

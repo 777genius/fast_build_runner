@@ -20,3 +20,4 @@ export 'src/fast_watch_alpha_session.dart';
 export 'src/fast_watch_scheduler.dart';
 export 'src/watch_update_merger.dart';
 export 'src/rust_daemon_client.dart';
+export 'src/project_mutation_profile.dart';

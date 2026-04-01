@@ -3,6 +3,7 @@ class FastWatchAlphaRequest {
   final String fixtureTemplatePath;
   final String workDirectoryPath;
   final bool keepRunDirectory;
+  final String? mutationProfilePath;
   final bool mutateBuildScriptBeforeIncremental;
   final bool simulateDroppedSourceUpdateOnIncremental;
   final String sourceEngine;
@@ -18,6 +19,7 @@ class FastWatchAlphaRequest {
     required this.fixtureTemplatePath,
     required this.workDirectoryPath,
     required this.keepRunDirectory,
+    this.mutationProfilePath,
     this.mutateBuildScriptBeforeIncremental = false,
     this.simulateDroppedSourceUpdateOnIncremental = false,
     this.sourceEngine = 'dart',

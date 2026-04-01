@@ -89,6 +89,11 @@ class FastBuildRunnerCli {
         defaultsTo: '.dart_tool/fast_build_runner/watch_alpha',
         help: 'Directory used for copied watch-alpha fixture runs.',
       )
+      ..addOption(
+        'mutation-profile',
+        help:
+            'Optional path to a JSON mutation profile for real-project benchmarking.',
+      )
       ..addFlag(
         'keep-run-dir',
         negatable: false,
@@ -154,14 +159,16 @@ class FastBuildRunnerCli {
         parsed['work-dir'] as String,
       ),
       keepRunDirectory: parsed['keep-run-dir'] as bool,
+      mutationProfilePath: parsed['mutation-profile'] == null
+          ? null
+          : _resolveFromRoot(repoRoot, parsed['mutation-profile'] as String),
       sourceEngine: parsed['source-engine'] as String,
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
-      trustBuildScriptFreshness:
-          parsed['trust-build-script-freshness'] as bool,
+      trustBuildScriptFreshness: parsed['trust-build-script-freshness'] as bool,
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -181,6 +188,11 @@ class FastBuildRunnerCli {
         'work-dir',
         defaultsTo: '.dart_tool/fast_build_runner/watch_benchmark',
         help: 'Directory used for benchmark fixture runs.',
+      )
+      ..addOption(
+        'mutation-profile',
+        help:
+            'Optional path to a JSON mutation profile for real-project benchmarking.',
       )
       ..addFlag(
         'keep-run-dir',
@@ -247,14 +259,16 @@ class FastBuildRunnerCli {
         parsed['work-dir'] as String,
       ),
       keepRunDirectory: parsed['keep-run-dir'] as bool,
+      mutationProfilePath: parsed['mutation-profile'] == null
+          ? null
+          : _resolveFromRoot(repoRoot, parsed['mutation-profile'] as String),
       incrementalCycles: int.parse(parsed['incremental-cycles'] as String),
       repeats: int.parse(parsed['repeats'] as String),
       noiseFilesPerCycle: int.parse(parsed['noise-files-per-cycle'] as String),
       continuousScheduling: parsed['continuous-scheduling'] as bool,
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
-      trustBuildScriptFreshness:
-          parsed['trust-build-script-freshness'] as bool,
+      trustBuildScriptFreshness: parsed['trust-build-script-freshness'] as bool,
     );
     final result = await FastWatchBenchmarkRunner().run(request);
     switch (parsed['output'] as String) {

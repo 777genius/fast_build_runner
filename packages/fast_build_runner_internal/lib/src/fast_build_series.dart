@@ -211,14 +211,12 @@ class FastBuildSeries {
     AssetGraph assetGraph,
   ) {
     final baseReaderWriter = buildPlan.readerWriter.copyWith(
-      generatedAssetHider:
-          buildPlan.testingOverrides.flattenOutput
-              ? const NoopGeneratedAssetHider()
-              : assetGraph,
-      cache:
-          buildPlan.buildOptions.enableLowResourcesMode
-              ? const PassthroughFilesystemCache()
-              : InMemoryFilesystemCache(),
+      generatedAssetHider: buildPlan.testingOverrides.flattenOutput
+          ? const NoopGeneratedAssetHider()
+          : assetGraph,
+      cache: buildPlan.buildOptions.enableLowResourcesMode
+          ? const PassthroughFilesystemCache()
+          : InMemoryFilesystemCache(),
     );
     return DeferredAssetGraphReaderWriter(
       delegate: baseReaderWriter,

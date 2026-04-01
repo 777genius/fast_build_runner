@@ -3,6 +3,7 @@ class FastWatchBenchmarkRequest {
   final String fixtureTemplatePath;
   final String workDirectoryPath;
   final bool keepRunDirectory;
+  final String? mutationProfilePath;
   final int incrementalCycles;
   final int repeats;
   final int noiseFilesPerCycle;
@@ -16,6 +17,7 @@ class FastWatchBenchmarkRequest {
     required this.fixtureTemplatePath,
     required this.workDirectoryPath,
     required this.keepRunDirectory,
+    this.mutationProfilePath,
     this.incrementalCycles = 1,
     this.repeats = 1,
     this.noiseFilesPerCycle = 0,

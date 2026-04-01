@@ -32,23 +32,20 @@ void main() {
       final assetB = AssetId('pkg', 'lib/b.dart');
 
       unawaited(
-        scheduler.enqueue(
-          {assetA: ChangeType.MODIFY},
-          skipBuildScriptFreshnessCheck: true,
-        ),
+        scheduler.enqueue({
+          assetA: ChangeType.MODIFY,
+        }, skipBuildScriptFreshnessCheck: true),
       );
       await startedFirstBuild.future;
       unawaited(
-        scheduler.enqueue(
-          {assetA: ChangeType.REMOVE},
-          skipBuildScriptFreshnessCheck: true,
-        ),
+        scheduler.enqueue({
+          assetA: ChangeType.REMOVE,
+        }, skipBuildScriptFreshnessCheck: true),
       );
       unawaited(
-        scheduler.enqueue(
-          {assetB: ChangeType.ADD},
-          skipBuildScriptFreshnessCheck: true,
-        ),
+        scheduler.enqueue({
+          assetB: ChangeType.ADD,
+        }, skipBuildScriptFreshnessCheck: true),
       );
       releaseFirstBuild.complete();
 
@@ -98,25 +95,22 @@ void main() {
       );
 
       unawaited(
-        scheduler.enqueue(
-          {assetA: ChangeType.MODIFY},
-          skipBuildScriptFreshnessCheck: true,
-        ),
+        scheduler.enqueue({
+          assetA: ChangeType.MODIFY,
+        }, skipBuildScriptFreshnessCheck: true),
       );
       await startedFirstBuild.future;
       unawaited(
-        scheduler.enqueue(
-          {assetB: ChangeType.ADD},
-          skipBuildScriptFreshnessCheck: true,
-        ),
+        scheduler.enqueue({
+          assetB: ChangeType.ADD,
+        }, skipBuildScriptFreshnessCheck: true),
       );
       releaseFirstBuild.complete();
       unawaited(
         Future<void>.delayed(const Duration(milliseconds: 20), () {
-          return scheduler.enqueue(
-            {assetC: ChangeType.MODIFY},
-            skipBuildScriptFreshnessCheck: true,
-          );
+          return scheduler.enqueue({
+            assetC: ChangeType.MODIFY,
+          }, skipBuildScriptFreshnessCheck: true);
         }),
       );
 

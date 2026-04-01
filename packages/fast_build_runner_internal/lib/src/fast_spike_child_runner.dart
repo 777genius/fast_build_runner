@@ -34,6 +34,7 @@ class FastSpikeChildRunner {
     final trustBuildScriptFreshness =
         argMap['trust-build-script-freshness'] == 'true';
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
+    final mutationProfilePath = argMap['mutation-profile'];
     if (projectDirectory == null ||
         sourceFile == null ||
         generatedFile == null ||
@@ -86,6 +87,7 @@ class FastSpikeChildRunner {
                 generatedFileRelativePath: resolvedGeneratedFile,
                 generatedEntrypointPath: resolvedEntrypointScript,
                 runDirectory: resolvedProjectDirectory,
+                mutationProfilePath: mutationProfilePath,
                 mutateBuildScriptBeforeIncremental:
                     mutateBuildScriptBeforeIncremental,
                 simulateDroppedSourceUpdateOnIncremental:

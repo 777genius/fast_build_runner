@@ -5,6 +5,57 @@ import 'package:test/test.dart';
 
 void main() {
   test(
+    'watch alpha can drive mutations from an external mutation profile',
+    () async {
+      final repoRoot = Directory.current.path;
+      final profileDirectory = Directory(
+        '$repoRoot/.dart_tool/test_watch_alpha_profile',
+      )..createSync(recursive: true);
+      final profileFile = File('${profileDirectory.path}/person_profile.json');
+      profileFile.writeAsStringSync('''
+{
+  "name": "fixture person profile",
+  "sourceFileRelativePath": "lib/person.dart",
+  "generatedFileRelativePath": "lib/person.g.dart",
+  "steps": [
+    {
+      "name": "add nickname",
+      "generatedMarkers": ["nickname"],
+      "replacements": [
+        {
+          "from": "  const Person({required this.name, this.age});\\n",
+          "to": "  const Person({required this.name, this.age, this.nickname});\\n"
+        },
+        {
+          "from": "  final int? age;\\n",
+          "to": "  final int? age;\\n  final String? nickname;\\n"
+        }
+      ]
+    }
+  ]
+}
+''');
+
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_alpha_profile_run',
+          keepRunDirectory: false,
+          mutationProfilePath: profileFile.path,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.incrementalBuilds, hasLength(1));
+      expect(result.incrementalBuild!.generatedFileHasMutation, isTrue);
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 3)),
+  );
+
+  test(
     'watch alpha can absorb unrelated noise files without widening merged updates',
     () async {
       final repoRoot = Directory.current.path;
