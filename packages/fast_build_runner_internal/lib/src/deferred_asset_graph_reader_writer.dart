@@ -35,6 +35,10 @@ class DeferredAssetGraphReaderWriter extends ReaderWriter {
 
   bool get hasBufferedAssetGraphWrite => _bufferedAssetGraphBytes != null;
 
+  void bufferAssetGraphBytes(List<int> bytes) {
+    _bufferedAssetGraphBytes = List<int>.from(bytes);
+  }
+
   Future<void> flushDeferredWrites() async {
     final bufferedAssetGraphBytes = _bufferedAssetGraphBytes;
     if (bufferedAssetGraphBytes == null) {

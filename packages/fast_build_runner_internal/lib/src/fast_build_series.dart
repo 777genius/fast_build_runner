@@ -3,7 +3,6 @@
 import 'dart:async';
 
 import 'package:build/build.dart';
-import 'package:build_runner/src/build/build.dart';
 import 'package:build_runner/src/build/build_result.dart';
 import 'package:build_runner/src/build/asset_graph/graph.dart';
 import 'package:build_runner/src/build_plan/build_directory.dart';
@@ -19,6 +18,7 @@ import 'package:built_collection/built_collection.dart';
 import 'package:watcher/watcher.dart';
 
 import 'deferred_asset_graph_reader_writer.dart';
+import 'fast_build.dart';
 import 'fast_build_run_profile.dart';
 
 /// Narrow copy of upstream BuildSeries for the bootstrap spike.
@@ -39,6 +39,7 @@ class FastBuildSeries {
 
   BuiltMap<AssetId, ChangeType>? _updatesFromLoad;
   Future<BuildResult>? _currentBuildResult;
+  bool _assetGraphNeedsPersistence = false;
   bool firstBuild = true;
 
   FastBuildSeries._({
@@ -163,11 +164,12 @@ class FastBuildSeries {
     }
 
     if (!firstBuild) buildLog.nextBuild();
-    final build = Build(
+    final build = FastBuild(
       buildPlan: _buildPlan,
       assetGraph: _assetGraph,
       readerWriter: _readerWriter,
       resourceManager: _resourceManager,
+      persistAssetGraphOnEveryBuild: false,
     );
     if (firstBuild) {
       firstBuild = false;
@@ -177,6 +179,9 @@ class FastBuildSeries {
     _currentBuildResult = build.run(updates);
     final result = await _currentBuildResult!;
     buildRunStopwatch.stop();
+    if (result.status == BuildStatus.success) {
+      _assetGraphNeedsPersistence = true;
+    }
     final assetGraphSerializeProbeStopwatch = Stopwatch()..start();
     final assetGraphBytes = _assetGraph.serialize();
     assetGraphSerializeProbeStopwatch.stop();
@@ -208,8 +213,14 @@ class FastBuildSeries {
 
   Future<void> _flushDeferredWrites() async {
     if (_readerWriter is DeferredAssetGraphReaderWriter) {
-      await (_readerWriter as DeferredAssetGraphReaderWriter)
-          .flushDeferredWrites();
+      final deferredReaderWriter =
+          _readerWriter as DeferredAssetGraphReaderWriter;
+      if (_assetGraphNeedsPersistence &&
+          !deferredReaderWriter.hasBufferedAssetGraphWrite) {
+        deferredReaderWriter.bufferAssetGraphBytes(_assetGraph.serialize());
+      }
+      await deferredReaderWriter.flushDeferredWrites();
+      _assetGraphNeedsPersistence = false;
     }
   }
 
