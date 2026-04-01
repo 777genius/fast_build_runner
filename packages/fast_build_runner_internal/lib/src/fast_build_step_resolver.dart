@@ -25,6 +25,7 @@ import 'package:build_runner/src/build/resolver/build_step_resolver.dart';
 class FastBuildStepResolver implements ReleasableResolver {
   final BuildResolver _buildResolver;
   final BuildStepImpl _buildStep;
+  final Map<String, Future<void>> _sharedResolveSyncCache;
 
   final _entryPoints = <AssetId>{};
   final _nonTransitiveSyncedEntrypoints = <AssetId>{};
@@ -35,7 +36,11 @@ class FastBuildStepResolver implements ReleasableResolver {
   final _compilationUnitCache = <_AssetReadKey, Future<CompilationUnit>>{};
   final _libraryCache = <_AssetReadKey, Future<LibraryElement>>{};
 
-  FastBuildStepResolver(this._buildResolver, this._buildStep);
+  FastBuildStepResolver(
+    this._buildResolver,
+    this._buildStep, {
+    required Map<String, Future<void>> sharedResolveSyncCache,
+  }) : _sharedResolveSyncCache = sharedResolveSyncCache;
 
   Stream<LibraryElement> get _librariesFromEntrypoints async* {
     await _updateDriverForEntrypoint(_buildStep.inputId, transitive: true);
@@ -172,15 +177,22 @@ class FastBuildStepResolver implements ReleasableResolver {
     AssetId entrypoint, {
     required bool transitive,
   }) => _perActionResolvePool.withResource(() async {
+    final phase = _buildStep.phasedReader.phase;
     if (transitive) {
       if (_entryPoints.contains(entrypoint)) return;
-      await _buildStep.trackStage(
-        'Resolving library $entrypoint',
-        () => _buildResolver.updateDriverForEntrypoint(
-          phasedReader: _buildStep.phasedReader,
-          inputTracker: _buildStep.inputTracker,
-          entrypoint: entrypoint,
-          transitive: true,
+      _buildStep.inputTracker.addResolverEntrypoint(entrypoint);
+      await _sharedSync(
+        entrypoint,
+        phase: phase,
+        transitive: true,
+        runResolve: () => _buildStep.trackStage(
+          'Resolving library $entrypoint',
+          () => _buildResolver.updateDriverForEntrypoint(
+            phasedReader: _buildStep.phasedReader,
+            inputTracker: _buildStep.inputTracker,
+            entrypoint: entrypoint,
+            transitive: true,
+          ),
         ),
       );
       _entryPoints.add(entrypoint);
@@ -193,17 +205,63 @@ class FastBuildStepResolver implements ReleasableResolver {
       return;
     }
 
-    await _buildStep.trackStage(
-      'Resolving library $entrypoint',
-      () => _buildResolver.updateDriverForEntrypoint(
-        phasedReader: _buildStep.phasedReader,
-        inputTracker: _buildStep.inputTracker,
-        entrypoint: entrypoint,
-        transitive: false,
+    _buildStep.inputTracker.add(entrypoint);
+    await _sharedSync(
+      entrypoint,
+      phase: phase,
+      transitive: false,
+      runResolve: () => _buildStep.trackStage(
+        'Resolving library $entrypoint',
+        () => _buildResolver.updateDriverForEntrypoint(
+          phasedReader: _buildStep.phasedReader,
+          inputTracker: _buildStep.inputTracker,
+          entrypoint: entrypoint,
+          transitive: false,
+        ),
       ),
     );
     _nonTransitiveSyncedEntrypoints.add(entrypoint);
   });
+
+  Future<void> _sharedSync(
+    AssetId entrypoint, {
+    required int phase,
+    required bool transitive,
+    required Future<void> Function() runResolve,
+  }) async {
+    final requestedKey = _sharedResolveKey(
+      entrypoint: entrypoint,
+      phase: phase,
+      transitive: transitive,
+    );
+    final compatibleKey = transitive
+        ? requestedKey
+        : _sharedResolveKey(
+            entrypoint: entrypoint,
+            phase: phase,
+            transitive: true,
+          );
+
+    final compatibleFuture = _sharedResolveSyncCache[compatibleKey];
+    if (compatibleFuture != null) {
+      await compatibleFuture;
+      return;
+    }
+
+    final existingFuture = _sharedResolveSyncCache[requestedKey];
+    if (existingFuture != null) {
+      await existingFuture;
+      return;
+    }
+
+    late final Future<void> resolveFuture;
+    resolveFuture = runResolve().catchError((Object error, StackTrace stack) {
+      _sharedResolveSyncCache.remove(requestedKey);
+      throw error;
+    });
+    _sharedResolveSyncCache[requestedKey] = resolveFuture;
+    await resolveFuture;
+  }
 
   @override
   void release() {}
@@ -228,3 +286,9 @@ class _AssetReadKey {
   @override
   int get hashCode => Object.hash(assetId, allowSyntaxErrors);
 }
+
+String _sharedResolveKey({
+  required AssetId entrypoint,
+  required int phase,
+  required bool transitive,
+}) => '${entrypoint.package}|${entrypoint.path}|$phase|$transitive';

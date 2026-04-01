@@ -25,6 +25,7 @@ import 'fast_build_step_resolver.dart';
 class FastResolversImpl implements Resolvers {
   final _initializationPool = Pool(1);
   final _driverPool = Pool(1);
+  final _sharedResolveSyncCache = <String, Future<void>>{};
 
   BuildResolver? _buildResolver;
   AnalysisDriverModel _analysisDriverModel;
@@ -65,16 +66,23 @@ class FastResolversImpl implements Resolvers {
       _buildResolver = BuildResolver(driver, _driverPool, _analysisDriverModel);
     });
 
-    return FastBuildStepResolver(_buildResolver!, buildStep as BuildStepImpl);
+    return FastBuildStepResolver(
+      _buildResolver!,
+      buildStep as BuildStepImpl,
+      sharedResolveSyncCache: _sharedResolveSyncCache,
+    );
   }
 
-  Future<void> takeLockAndStartBuild(AssetGraph assetGraph) =>
-      _analysisDriverModel.takeLockAndStartBuild(assetGraph);
+  Future<void> takeLockAndStartBuild(AssetGraph assetGraph) {
+    _sharedResolveSyncCache.clear();
+    return _analysisDriverModel.takeLockAndStartBuild(assetGraph);
+  }
 
   PhasedAssetDeps phasedAssetDeps() => _analysisDriverModel.phasedAssetDeps();
 
   @override
   void reset() {
+    _sharedResolveSyncCache.clear();
     _analysisDriverModel.endBuildAndUnlock();
   }
 }
