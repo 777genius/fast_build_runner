@@ -1121,12 +1121,22 @@ class FastBuild {
 
       // Check for changes to any inputs.
       final inputs = firstOutputState.inputs;
+      if (_hasDirectSourceLikeInputChange(inputs)) {
+        _buildShouldRunChangedInputHits++;
+        return true;
+      }
+
       for (final input in inputs) {
+        final inputNode = assetGraph.get(input)!;
+        if (inputNode.type == NodeType.source ||
+            inputNode.type == NodeType.missingSource) {
+          continue;
+        }
         _buildShouldRunInputCheckCount++;
         final inputCheckStopwatch = Stopwatch()..start();
-        final changed = await _hasInputChanged(
+        final changed = await _hasNonSourceInputChanged(
+          inputNode: inputNode,
           phaseNumber: phaseNumber,
-          input: input,
         );
         inputCheckStopwatch.stop();
         _buildShouldRunInputCheckMilliseconds +=
@@ -1250,6 +1260,57 @@ class FastBuild {
     required int phaseNumber,
   }) async {
     final inputNode = assetGraph.get(input)!;
+    return _hasInputChangedForNode(
+      inputNode: inputNode,
+      phaseNumber: phaseNumber,
+    );
+  }
+
+  bool _hasDirectSourceLikeInputChange(BuiltSet<AssetId> inputs) {
+    for (final changedInput in changedInputs) {
+      if (!inputs.contains(changedInput)) {
+        continue;
+      }
+      final changedNode = assetGraph.get(changedInput);
+      if (changedNode?.type == NodeType.source) {
+        return true;
+      }
+    }
+
+    for (final deletedInput in deletedAssets) {
+      if (!inputs.contains(deletedInput)) {
+        continue;
+      }
+      final deletedNode = assetGraph.get(deletedInput);
+      if (deletedNode?.type == NodeType.source ||
+          deletedNode?.type == NodeType.missingSource) {
+        return true;
+      }
+    }
+
+    return false;
+  }
+
+  Future<bool> _hasNonSourceInputChanged({
+    required AssetNode inputNode,
+    required int phaseNumber,
+  }) {
+    assert(
+      inputNode.type != NodeType.source &&
+          inputNode.type != NodeType.missingSource,
+      'Source-like inputs should be handled by the direct-change prefilter.',
+    );
+    return _hasInputChangedForNode(
+      inputNode: inputNode,
+      phaseNumber: phaseNumber,
+    );
+  }
+
+  Future<bool> _hasInputChangedForNode({
+    required AssetNode inputNode,
+    required int phaseNumber,
+  }) async {
+    final input = inputNode.id;
     if (inputNode.type == NodeType.generated) {
       if (inputNode.generatedNodeConfiguration!.phaseNumber >= phaseNumber) {
         // It's not readable in this phase.
