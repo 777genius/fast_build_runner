@@ -175,6 +175,32 @@ void main() {
   );
 
   test(
+    'watch alpha still surfaces buildScriptChanged when trust mode is enabled',
+    () async {
+      final repoRoot = Directory.current.path;
+      final result = await FastWatchAlphaRunner().run(
+        FastWatchAlphaRequest(
+          repoRoot: repoRoot,
+          fixtureTemplatePath: '$repoRoot/fixtures/json_serializable_fixture',
+          workDirectoryPath:
+              '$repoRoot/.dart_tool/test_watch_alpha_build_script_change_trusted',
+          keepRunDirectory: false,
+          trustBuildScriptFreshness: true,
+          mutateBuildScriptBeforeIncremental: true,
+        ),
+      );
+
+      expect(result.status, 'success');
+      expect(result.initialBuild, isNotNull);
+      expect(result.incrementalBuild, isNotNull);
+      expect(result.incrementalBuild!.status, 'failure');
+      expect(result.incrementalBuild!.failureType, 'buildScriptChanged');
+      expect(result.errors, isEmpty);
+    },
+    timeout: const Timeout(Duration(minutes: 2)),
+  );
+
+  test(
     'watch alpha can use the Rust daemon as the source engine',
     () async {
       final repoRoot = Directory.current.path;

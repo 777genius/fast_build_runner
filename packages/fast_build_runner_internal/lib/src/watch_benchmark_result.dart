@@ -310,6 +310,54 @@ class FastWatchBenchmarkResult {
         'untrackedBuildRunMilliseconds',
       );
 
+  int? get dartIncrementalFreshnessCheckMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'freshnessCheckMilliseconds',
+      );
+
+  int? get rustIncrementalFreshnessCheckMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'freshnessCheckMilliseconds',
+      );
+
+  int? get dartIncrementalConfigReloadMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'configReloadMilliseconds',
+      );
+
+  int? get rustIncrementalConfigReloadMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'configReloadMilliseconds',
+      );
+
+  int? get dartIncrementalAssetGraphSerializeProbeMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'assetGraphSerializeProbeMilliseconds',
+      );
+
+  int? get rustIncrementalAssetGraphSerializeProbeMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'assetGraphSerializeProbeMilliseconds',
+      );
+
+  int? get dartIncrementalAssetGraphSerializeProbeBytes =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'assetGraphSerializeProbeBytes',
+      );
+
+  int? get rustIncrementalAssetGraphSerializeProbeBytes =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'assetGraphSerializeProbeBytes',
+      );
+
   static int? _incrementalProfileMetric(
     Map<String, Object?>? profile,
     String key,
@@ -364,10 +412,26 @@ class FastWatchBenchmarkResult {
         dartIncrementalTrackedActionMilliseconds,
     'rustIncrementalTrackedActionMilliseconds':
         rustIncrementalTrackedActionMilliseconds,
+    'dartIncrementalFreshnessCheckMilliseconds':
+        dartIncrementalFreshnessCheckMilliseconds,
+    'rustIncrementalFreshnessCheckMilliseconds':
+        rustIncrementalFreshnessCheckMilliseconds,
+    'dartIncrementalConfigReloadMilliseconds':
+        dartIncrementalConfigReloadMilliseconds,
+    'rustIncrementalConfigReloadMilliseconds':
+        rustIncrementalConfigReloadMilliseconds,
     'dartIncrementalUntrackedBuildMilliseconds':
         dartIncrementalUntrackedBuildMilliseconds,
     'rustIncrementalUntrackedBuildMilliseconds':
         rustIncrementalUntrackedBuildMilliseconds,
+    'dartIncrementalAssetGraphSerializeProbeMilliseconds':
+        dartIncrementalAssetGraphSerializeProbeMilliseconds,
+    'rustIncrementalAssetGraphSerializeProbeMilliseconds':
+        rustIncrementalAssetGraphSerializeProbeMilliseconds,
+    'dartIncrementalAssetGraphSerializeProbeBytes':
+        dartIncrementalAssetGraphSerializeProbeBytes,
+    'rustIncrementalAssetGraphSerializeProbeBytes':
+        rustIncrementalAssetGraphSerializeProbeBytes,
     'dartTotalWatchCollectionMilliseconds':
         dartTotalWatchCollectionMilliseconds,
     'rustTotalWatchCollectionMilliseconds':
@@ -438,10 +502,26 @@ class FastWatchBenchmarkResult {
         'dartIncrementalTrackedActionMilliseconds: $dartIncrementalTrackedActionMilliseconds ms',
       if (rustIncrementalTrackedActionMilliseconds != null)
         'rustIncrementalTrackedActionMilliseconds: $rustIncrementalTrackedActionMilliseconds ms',
+      if (dartIncrementalFreshnessCheckMilliseconds != null)
+        'dartIncrementalFreshnessCheckMilliseconds: $dartIncrementalFreshnessCheckMilliseconds ms',
+      if (rustIncrementalFreshnessCheckMilliseconds != null)
+        'rustIncrementalFreshnessCheckMilliseconds: $rustIncrementalFreshnessCheckMilliseconds ms',
+      if (dartIncrementalConfigReloadMilliseconds != null)
+        'dartIncrementalConfigReloadMilliseconds: $dartIncrementalConfigReloadMilliseconds ms',
+      if (rustIncrementalConfigReloadMilliseconds != null)
+        'rustIncrementalConfigReloadMilliseconds: $rustIncrementalConfigReloadMilliseconds ms',
       if (dartIncrementalUntrackedBuildMilliseconds != null)
         'dartIncrementalUntrackedBuildMilliseconds: $dartIncrementalUntrackedBuildMilliseconds ms',
       if (rustIncrementalUntrackedBuildMilliseconds != null)
         'rustIncrementalUntrackedBuildMilliseconds: $rustIncrementalUntrackedBuildMilliseconds ms',
+      if (dartIncrementalAssetGraphSerializeProbeMilliseconds != null)
+        'dartIncrementalAssetGraphSerializeProbeMilliseconds: $dartIncrementalAssetGraphSerializeProbeMilliseconds ms',
+      if (rustIncrementalAssetGraphSerializeProbeMilliseconds != null)
+        'rustIncrementalAssetGraphSerializeProbeMilliseconds: $rustIncrementalAssetGraphSerializeProbeMilliseconds ms',
+      if (dartIncrementalAssetGraphSerializeProbeBytes != null)
+        'dartIncrementalAssetGraphSerializeProbeBytes: $dartIncrementalAssetGraphSerializeProbeBytes bytes',
+      if (rustIncrementalAssetGraphSerializeProbeBytes != null)
+        'rustIncrementalAssetGraphSerializeProbeBytes: $rustIncrementalAssetGraphSerializeProbeBytes bytes',
       if (rustWatchCollectionSpeedupVsDart != null)
         'rustWatchCollectionSpeedupVsDart: ${rustWatchCollectionSpeedupVsDart!.toStringAsFixed(2)}x',
       if (dartSpeedupVsUpstream != null)

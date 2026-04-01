@@ -12,6 +12,8 @@ class FastBuildRunProfile {
   final int trackedPhaseMilliseconds;
   final int trackedBuilderActionCount;
   final int trackedBuildPhaseCount;
+  final int assetGraphSerializeProbeMilliseconds;
+  final int assetGraphSerializeProbeBytes;
 
   const FastBuildRunProfile({
     required this.freshnessCheckMilliseconds,
@@ -21,6 +23,8 @@ class FastBuildRunProfile {
     required this.trackedPhaseMilliseconds,
     required this.trackedBuilderActionCount,
     required this.trackedBuildPhaseCount,
+    required this.assetGraphSerializeProbeMilliseconds,
+    required this.assetGraphSerializeProbeBytes,
   });
 
   int get untrackedBuildRunMilliseconds =>
@@ -34,6 +38,8 @@ class FastBuildRunProfile {
     'trackedPhaseMilliseconds': trackedPhaseMilliseconds,
     'trackedBuilderActionCount': trackedBuilderActionCount,
     'trackedBuildPhaseCount': trackedBuildPhaseCount,
+    'assetGraphSerializeProbeMilliseconds': assetGraphSerializeProbeMilliseconds,
+    'assetGraphSerializeProbeBytes': assetGraphSerializeProbeBytes,
     'untrackedBuildRunMilliseconds': untrackedBuildRunMilliseconds,
   };
 
@@ -46,6 +52,10 @@ class FastBuildRunProfile {
         trackedPhaseMilliseconds: json['trackedPhaseMilliseconds']! as int,
         trackedBuilderActionCount: json['trackedBuilderActionCount']! as int,
         trackedBuildPhaseCount: json['trackedBuildPhaseCount']! as int,
+        assetGraphSerializeProbeMilliseconds:
+            json['assetGraphSerializeProbeMilliseconds']! as int,
+        assetGraphSerializeProbeBytes:
+            json['assetGraphSerializeProbeBytes']! as int,
       );
 
   factory FastBuildRunProfile.fromBuildResult({
@@ -53,6 +63,8 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphSerializeProbeMilliseconds,
+    required int assetGraphSerializeProbeBytes,
   }) {
     final performance = buildResult.performance;
     if (performance == null) {
@@ -60,6 +72,9 @@ class FastBuildRunProfile {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphSerializeProbeMilliseconds:
+            assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
     }
 
@@ -82,12 +97,16 @@ class FastBuildRunProfile {
         trackedPhaseMilliseconds: trackedPhaseMilliseconds,
         trackedBuilderActionCount: performance.actions.length,
         trackedBuildPhaseCount: performance.phases.length,
+        assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
     } on UnsupportedError {
       return _withoutTrackedPerformance(
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunMilliseconds,
+        assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
     }
   }
@@ -96,6 +115,8 @@ class FastBuildRunProfile {
     required int freshnessCheckMilliseconds,
     required int configReloadMilliseconds,
     required int buildRunMilliseconds,
+    required int assetGraphSerializeProbeMilliseconds,
+    required int assetGraphSerializeProbeBytes,
   }) {
     return FastBuildRunProfile(
       freshnessCheckMilliseconds: freshnessCheckMilliseconds,
@@ -105,6 +126,8 @@ class FastBuildRunProfile {
       trackedPhaseMilliseconds: 0,
       trackedBuilderActionCount: 0,
       trackedBuildPhaseCount: 0,
+      assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+      assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
     );
   }
 }

@@ -28,6 +28,6 @@ class FastWatchAlphaRequest {
     this.continuousScheduling = false,
     this.extraFixtureModels = 0,
     this.settleBuildDelayMs = 0,
-    this.trustBuildScriptFreshness = false,
+    this.trustBuildScriptFreshness = true,
   });
 }

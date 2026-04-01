@@ -25,7 +25,7 @@ class FastWatchBenchmarkRequest {
     this.continuousScheduling = false,
     this.extraFixtureModels = 0,
     this.settleBuildDelayMs = 0,
-    this.trustBuildScriptFreshness = false,
+    this.trustBuildScriptFreshness = true,
     this.includeUpstream = false,
   });
 }

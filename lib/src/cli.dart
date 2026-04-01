@@ -141,9 +141,9 @@ class FastBuildRunnerCli {
       )
       ..addFlag(
         'trust-build-script-freshness',
-        negatable: false,
+        defaultsTo: true,
         help:
-            'Experimental fast path: skip incremental build-script freshness checks after bootstrap.',
+            'Fast path: skip incremental build-script freshness checks after bootstrap unless relevant build script inputs changed.',
       );
 
     final parsed = parser.parse(args);
@@ -235,9 +235,9 @@ class FastBuildRunnerCli {
       )
       ..addFlag(
         'trust-build-script-freshness',
-        negatable: false,
+        defaultsTo: true,
         help:
-            'Experimental fast path: skip incremental build-script freshness checks after bootstrap.',
+            'Fast path: skip incremental build-script freshness checks after bootstrap unless relevant build script inputs changed.',
       )
       ..addFlag(
         'include-upstream',

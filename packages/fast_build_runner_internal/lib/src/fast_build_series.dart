@@ -114,6 +114,8 @@ class FastBuildSeries {
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
+            assetGraphSerializeProbeMilliseconds: 0,
+            assetGraphSerializeProbeBytes: 0,
           ),
         );
       }
@@ -140,6 +142,8 @@ class FastBuildSeries {
             trackedPhaseMilliseconds: 0,
             trackedBuilderActionCount: 0,
             trackedBuildPhaseCount: 0,
+            assetGraphSerializeProbeMilliseconds: 0,
+            assetGraphSerializeProbeBytes: 0,
           ),
         );
       }
@@ -173,6 +177,9 @@ class FastBuildSeries {
     _currentBuildResult = build.run(updates);
     final result = await _currentBuildResult!;
     buildRunStopwatch.stop();
+    final assetGraphSerializeProbeStopwatch = Stopwatch()..start();
+    final assetGraphBytes = _assetGraph.serialize();
+    assetGraphSerializeProbeStopwatch.stop();
     _buildResultsController.add(result);
     return FastBuildRunOutcome(
       result: result,
@@ -181,6 +188,9 @@ class FastBuildSeries {
         freshnessCheckMilliseconds: freshnessCheckMilliseconds,
         configReloadMilliseconds: configReloadMilliseconds,
         buildRunMilliseconds: buildRunStopwatch.elapsedMilliseconds,
+        assetGraphSerializeProbeMilliseconds:
+            assetGraphSerializeProbeStopwatch.elapsedMilliseconds,
+        assetGraphSerializeProbeBytes: assetGraphBytes.length,
       ),
     );
   }
