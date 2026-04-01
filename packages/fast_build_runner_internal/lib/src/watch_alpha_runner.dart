@@ -10,6 +10,7 @@ import 'package:yaml/yaml.dart';
 
 import 'fast_bootstrap_generator.dart';
 import 'fast_bootstrapper.dart';
+import 'project_fixture_copy.dart';
 import 'project_mutation_profile.dart';
 import 'upstream_pin.dart';
 import 'watch_alpha_request.dart';
@@ -161,7 +162,7 @@ class FastWatchAlphaRunner {
     final entrypointPath = p.join(runDirectory.path, entrypointScriptPath);
 
     try {
-      await _copyDirectory(fixtureTemplateDir, runDirectory);
+      await copyProjectFixture(fixtureTemplateDir, runDirectory);
       if (request.extraFixtureModels > 0) {
         _expandFixtureModelSet(runDirectory.path, request.extraFixtureModels);
       }
@@ -320,19 +321,6 @@ class FastWatchAlphaRunner {
     );
     runDir.createSync(recursive: true);
     return runDir;
-  }
-
-  Future<void> _copyDirectory(Directory source, Directory destination) async {
-    await for (final entity in source.list(recursive: false)) {
-      final targetPath = p.join(destination.path, p.basename(entity.path));
-      if (entity is Directory) {
-        final targetDirectory = Directory(targetPath)
-          ..createSync(recursive: true);
-        await _copyDirectory(entity, targetDirectory);
-      } else if (entity is File) {
-        await File(entity.path).copy(targetPath);
-      }
-    }
   }
 
   void _expandFixtureModelSet(String projectDirectory, int extraFixtureModels) {
