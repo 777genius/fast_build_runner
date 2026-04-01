@@ -45,7 +45,9 @@ import 'package:build_runner/src/io/reader_writer.dart';
 import 'package:build_runner/src/logging/build_log.dart';
 import 'package:build_runner/src/logging/timed_activities.dart';
 
-final ResolversImpl _defaultResolvers = ResolversImpl(
+import 'fast_resolvers_impl.dart';
+
+final FastResolversImpl _defaultResolvers = FastResolversImpl(
   analysisDriverModel: AnalysisDriverModel(),
 );
 
@@ -184,12 +186,8 @@ class FastBuild {
       LibraryCycleGraphLoader();
   final AssetDepsLoader? previousDepsLoader;
   final Resolvers resolvers;
-
-  /// If [resolvers] is a `ResolversImpl`, the same instance.
-  ///
-  /// Otherwise, `null`. A different `Resolvers` implementation can be passed
-  /// for testing, including via `build_test`.
-  final ResolversImpl? resolversImpl;
+  final Future<void> Function(AssetGraph assetGraph)? _startResolverBuild;
+  final PhasedAssetDeps Function()? _readResolverPhasedAssetDeps;
 
   // Logging.
   final BuildPerformanceTracker performanceTracker;
@@ -256,11 +254,46 @@ class FastBuild {
   int _buildShouldRunChangedInputHits = 0;
   int _buildShouldRunChangedGraphHits = 0;
 
-  FastBuild({
+  factory FastBuild({
+    required BuildPlan buildPlan,
+    required ReaderWriter readerWriter,
+    required ResourceManager resourceManager,
+    required AssetGraph assetGraph,
+    Resolvers? resolversOverride,
+    bool persistAssetGraphOnEveryBuild = true,
+  }) {
+    final resolvedResolvers =
+        resolversOverride ??
+        buildPlan.testingOverrides.resolvers ??
+        _defaultResolvers;
+    return FastBuild._(
+      buildPlan: buildPlan,
+      readerWriter: readerWriter,
+      resourceManager: resourceManager,
+      assetGraph: assetGraph,
+      resolvers: resolvedResolvers,
+      startResolverBuild: switch (resolvedResolvers) {
+        FastResolversImpl r => r.takeLockAndStartBuild,
+        ResolversImpl r => r.takeLockAndStartBuild,
+        _ => null,
+      },
+      readResolverPhasedAssetDeps: switch (resolvedResolvers) {
+        FastResolversImpl r => r.phasedAssetDeps,
+        ResolversImpl r => r.phasedAssetDeps,
+        _ => null,
+      },
+      persistAssetGraphOnEveryBuild: persistAssetGraphOnEveryBuild,
+    );
+  }
+
+  FastBuild._({
     required this.buildPlan,
     required this.readerWriter,
     required this.resourceManager,
     required this.assetGraph,
+    required this.resolvers,
+    required Future<void> Function(AssetGraph assetGraph)? startResolverBuild,
+    required PhasedAssetDeps Function()? readResolverPhasedAssetDeps,
     this.persistAssetGraphOnEveryBuild = true,
   }) : performanceTracker = buildPlan.buildOptions.trackPerformance
            ? BuildPerformanceTracker()
@@ -268,12 +301,8 @@ class FastBuild {
        previousDepsLoader = assetGraph.previousPhasedAssetDeps == null
            ? null
            : AssetDepsLoader.fromDeps(assetGraph.previousPhasedAssetDeps!),
-       resolvers = buildPlan.testingOverrides.resolvers ?? _defaultResolvers,
-       resolversImpl = switch (buildPlan.testingOverrides.resolvers ??
-           _defaultResolvers) {
-         ResolversImpl r => r,
-         _ => null,
-       };
+       _startResolverBuild = startResolverBuild,
+       _readResolverPhasedAssetDeps = readResolverPhasedAssetDeps;
 
   BuildOptions get buildOptions => buildPlan.buildOptions;
   TestingOverrides get testingOverrides => buildPlan.testingOverrides;
@@ -421,7 +450,7 @@ class FastBuild {
           assetGraphUpdateMilliseconds =
               assetGraphUpdateStopwatch.elapsedMilliseconds;
         }
-        await resolversImpl?.takeLockAndStartBuild(assetGraph);
+        await _startResolverBuild?.call(assetGraph);
         final runPhasesStopwatch = Stopwatch()..start();
         final result = await _runPhases();
         runPhasesStopwatch.stop();
@@ -434,7 +463,7 @@ class FastBuild {
         // say "not generated yet", in which case the old value is retained.
         final phasedAssetDepsUpdateStopwatch = Stopwatch()..start();
         final currentPhasedAssetDeps =
-            resolversImpl?.phasedAssetDeps() ?? PhasedAssetDeps();
+            _readResolverPhasedAssetDeps?.call() ?? PhasedAssetDeps();
         final updatedPhasedAssetDeps =
             assetGraph.previousPhasedAssetDeps == null
             ? currentPhasedAssetDeps
