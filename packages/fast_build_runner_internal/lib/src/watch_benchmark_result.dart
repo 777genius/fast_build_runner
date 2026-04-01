@@ -1,4 +1,5 @@
 import 'bootstrap_spike_result.dart';
+import 'fast_build_run_profile.dart';
 import 'watch_alpha_result.dart';
 
 class FastWatchBenchmarkEngineResult {
@@ -304,17 +305,15 @@ class FastWatchBenchmarkResult {
         'assetGraphUpdateMilliseconds',
       );
 
-  int? get dartIncrementalRunPhasesMilliseconds =>
-      _incrementalProfileMetric(
-        dart.result.incrementalBuild?.profile,
-        'runPhasesMilliseconds',
-      );
+  int? get dartIncrementalRunPhasesMilliseconds => _incrementalProfileMetric(
+    dart.result.incrementalBuild?.profile,
+    'runPhasesMilliseconds',
+  );
 
-  int? get rustIncrementalRunPhasesMilliseconds =>
-      _incrementalProfileMetric(
-        rust.result.incrementalBuild?.profile,
-        'runPhasesMilliseconds',
-      );
+  int? get rustIncrementalRunPhasesMilliseconds => _incrementalProfileMetric(
+    rust.result.incrementalBuild?.profile,
+    'runPhasesMilliseconds',
+  );
 
   int? get dartIncrementalPhasedAssetDepsUpdateMilliseconds =>
       _incrementalProfileMetric(
@@ -466,17 +465,15 @@ class FastWatchBenchmarkResult {
         'freshnessCheckMilliseconds',
       );
 
-  int? get dartIncrementalConfigReloadMilliseconds =>
-      _incrementalProfileMetric(
-        dart.result.incrementalBuild?.profile,
-        'configReloadMilliseconds',
-      );
+  int? get dartIncrementalConfigReloadMilliseconds => _incrementalProfileMetric(
+    dart.result.incrementalBuild?.profile,
+    'configReloadMilliseconds',
+  );
 
-  int? get rustIncrementalConfigReloadMilliseconds =>
-      _incrementalProfileMetric(
-        rust.result.incrementalBuild?.profile,
-        'configReloadMilliseconds',
-      );
+  int? get rustIncrementalConfigReloadMilliseconds => _incrementalProfileMetric(
+    rust.result.incrementalBuild?.profile,
+    'configReloadMilliseconds',
+  );
 
   int? get dartIncrementalAssetGraphSerializeProbeMilliseconds =>
       _incrementalProfileMetric(
@@ -514,17 +511,15 @@ class FastWatchBenchmarkResult {
         'assetGraphPersistMilliseconds',
       );
 
-  int? get dartIncrementalCacheFlushMilliseconds =>
-      _incrementalProfileMetric(
-        dart.result.incrementalBuild?.profile,
-        'cacheFlushMilliseconds',
-      );
+  int? get dartIncrementalCacheFlushMilliseconds => _incrementalProfileMetric(
+    dart.result.incrementalBuild?.profile,
+    'cacheFlushMilliseconds',
+  );
 
-  int? get rustIncrementalCacheFlushMilliseconds =>
-      _incrementalProfileMetric(
-        rust.result.incrementalBuild?.profile,
-        'cacheFlushMilliseconds',
-      );
+  int? get rustIncrementalCacheFlushMilliseconds => _incrementalProfileMetric(
+    rust.result.incrementalBuild?.profile,
+    'cacheFlushMilliseconds',
+  );
 
   int? get dartIncrementalResourceDisposeMilliseconds =>
       _incrementalProfileMetric(
@@ -632,6 +627,18 @@ class FastWatchBenchmarkResult {
         dartIncrementalTrackedActionWallMilliseconds,
     'rustIncrementalTrackedActionWallMilliseconds':
         rustIncrementalTrackedActionWallMilliseconds,
+    'dartIncrementalTrackedActionOverheadMilliseconds': _incrementalProfile(
+      dart.result.incrementalBuild?.profile,
+    )?.trackedActionOverheadMilliseconds,
+    'rustIncrementalTrackedActionOverheadMilliseconds': _incrementalProfile(
+      rust.result.incrementalBuild?.profile,
+    )?.trackedActionOverheadMilliseconds,
+    'dartIncrementalTrackedStageWallMillisecondsByLabel': _incrementalProfile(
+      dart.result.incrementalBuild?.profile,
+    )?.trackedStageWallMillisecondsByLabel,
+    'rustIncrementalTrackedStageWallMillisecondsByLabel': _incrementalProfile(
+      rust.result.incrementalBuild?.profile,
+    )?.trackedStageWallMillisecondsByLabel,
     'dartIncrementalAssetGraphUpdateMilliseconds':
         dartIncrementalAssetGraphUpdateMilliseconds,
     'rustIncrementalAssetGraphUpdateMilliseconds':
@@ -770,6 +777,22 @@ class FastWatchBenchmarkResult {
         'dartIncrementalTrackedActionWallMilliseconds: $dartIncrementalTrackedActionWallMilliseconds ms',
       if (rustIncrementalTrackedActionWallMilliseconds != null)
         'rustIncrementalTrackedActionWallMilliseconds: $rustIncrementalTrackedActionWallMilliseconds ms',
+      if (_incrementalProfile(dart.result.incrementalBuild?.profile)
+          case final profile?)
+        'dartIncrementalTrackedActionOverheadMilliseconds: ${profile.trackedActionOverheadMilliseconds} ms',
+      if (_incrementalProfile(rust.result.incrementalBuild?.profile)
+          case final profile?)
+        'rustIncrementalTrackedActionOverheadMilliseconds: ${profile.trackedActionOverheadMilliseconds} ms',
+      if (_renderTopStageSummary(
+            _incrementalProfile(dart.result.incrementalBuild?.profile),
+          )
+          case final summary?)
+        'dartIncrementalTopTrackedStages: $summary',
+      if (_renderTopStageSummary(
+            _incrementalProfile(rust.result.incrementalBuild?.profile),
+          )
+          case final summary?)
+        'rustIncrementalTopTrackedStages: $summary',
       if (dartIncrementalAssetGraphUpdateMilliseconds != null)
         'dartIncrementalAssetGraphUpdateMilliseconds: $dartIncrementalAssetGraphUpdateMilliseconds ms',
       if (rustIncrementalAssetGraphUpdateMilliseconds != null)
@@ -879,6 +902,30 @@ class FastWatchBenchmarkResult {
       lines.addAll(errors.map((error) => '- $error'));
     }
     return lines;
+  }
+
+  static String? _renderTopStageSummary(FastBuildRunProfile? profile) {
+    if (profile == null ||
+        profile.trackedStageWallMillisecondsByLabel.isEmpty) {
+      return null;
+    }
+    final sortedEntries =
+        profile.trackedStageWallMillisecondsByLabel.entries
+            .where((entry) => entry.value > 0)
+            .toList()
+          ..sort((a, b) => b.value.compareTo(a.value));
+    if (sortedEntries.isEmpty) return null;
+    return sortedEntries
+        .take(5)
+        .map((entry) => '${entry.key}=${entry.value}ms')
+        .join(', ');
+  }
+
+  static FastBuildRunProfile? _incrementalProfile(
+    Map<String, Object?>? profileJson,
+  ) {
+    if (profileJson == null) return null;
+    return FastBuildRunProfile.fromJson(profileJson);
   }
 
   String toMarkdown() {

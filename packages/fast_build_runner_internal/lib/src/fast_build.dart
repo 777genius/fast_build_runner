@@ -151,11 +151,9 @@ class FastBuildInternalMetrics {
       buildShouldRunGraphCheckCount:
           buildShouldRunGraphCheckCount ?? this.buildShouldRunGraphCheckCount,
       buildShouldRunChangedInputHits:
-          buildShouldRunChangedInputHits ??
-          this.buildShouldRunChangedInputHits,
+          buildShouldRunChangedInputHits ?? this.buildShouldRunChangedInputHits,
       buildShouldRunChangedGraphHits:
-          buildShouldRunChangedGraphHits ??
-          this.buildShouldRunChangedGraphHits,
+          buildShouldRunChangedGraphHits ?? this.buildShouldRunChangedGraphHits,
       assetGraphPersistMilliseconds:
           assetGraphPersistMilliseconds ?? this.assetGraphPersistMilliseconds,
       cacheFlushMilliseconds:
@@ -264,14 +262,12 @@ class FastBuild {
     required this.resourceManager,
     required this.assetGraph,
     this.persistAssetGraphOnEveryBuild = true,
-  }) : performanceTracker =
-           buildPlan.buildOptions.trackPerformance
-               ? BuildPerformanceTracker()
-               : BuildPerformanceTracker.noOp(),
-       previousDepsLoader =
-           assetGraph.previousPhasedAssetDeps == null
-               ? null
-               : AssetDepsLoader.fromDeps(assetGraph.previousPhasedAssetDeps!),
+  }) : performanceTracker = buildPlan.buildOptions.trackPerformance
+           ? BuildPerformanceTracker()
+           : BuildPerformanceTracker.noOp(),
+       previousDepsLoader = assetGraph.previousPhasedAssetDeps == null
+           ? null
+           : AssetDepsLoader.fromDeps(assetGraph.previousPhasedAssetDeps!),
        resolvers = buildPlan.testingOverrides.resolvers ?? _defaultResolvers,
        resolversImpl = switch (buildPlan.testingOverrides.resolvers ??
            _defaultResolvers) {
@@ -320,10 +316,8 @@ class FastBuild {
       if (failures.isNotEmpty) {
         for (final failure in failures) {
           if (errorsShownOutputs.contains(failure.id)) continue;
-          final phase =
-              buildPhases.inBuildPhases[failure
-                  .generatedNodeConfiguration!
-                  .phaseNumber];
+          final phase = buildPhases
+              .inBuildPhases[failure.generatedNodeConfiguration!.phaseNumber];
           final logger = buildLog.loggerFor(
             phase: phase,
             primaryInput: failure.generatedNodeConfiguration!.primaryInput,
@@ -443,10 +437,10 @@ class FastBuild {
             resolversImpl?.phasedAssetDeps() ?? PhasedAssetDeps();
         final updatedPhasedAssetDeps =
             assetGraph.previousPhasedAssetDeps == null
-                ? currentPhasedAssetDeps
-                : assetGraph.previousPhasedAssetDeps!.update(
-                  currentPhasedAssetDeps,
-                );
+            ? currentPhasedAssetDeps
+            : assetGraph.previousPhasedAssetDeps!.update(
+                currentPhasedAssetDeps,
+              );
         assetGraph.previousPhasedAssetDeps = updatedPhasedAssetDeps;
         phasedAssetDepsUpdateStopwatch.stop();
         phasedAssetDepsUpdateMilliseconds =
@@ -628,9 +622,10 @@ class FastBuild {
     final phase = buildPhases[phaseNumber] as InBuildPhase;
     final packageNode = buildPackages[package]!;
 
-    for (final node in assetGraph
-        .outputsForPhase(package, phaseNumber)
-        .toList(growable: false)) {
+    for (final node
+        in assetGraph
+            .outputsForPhase(package, phaseNumber)
+            .toList(growable: false)) {
       if (!shouldBuildForDirs(
         node.id,
         buildDirs: buildPlan.buildOptions.buildDirs,
@@ -730,7 +725,8 @@ class FastBuild {
         ),
       );
       buildShouldRunStopwatch.stop();
-      _buildShouldRunMilliseconds += buildShouldRunStopwatch.elapsedMilliseconds;
+      _buildShouldRunMilliseconds +=
+          buildShouldRunStopwatch.elapsedMilliseconds;
       if (!shouldRun) {
         buildLog.skipStep(phase: phase, lazy: lazy);
         return <AssetId>[];
@@ -1185,8 +1181,8 @@ class FastBuild {
     required int phaseNumber,
   }) async {
     // If the result has already been calculated, return it.
-    final entrypointGraph = (await previousLibraryCycleGraphLoader
-        .libraryCycleGraphOf(
+    final entrypointGraph =
+        (await previousLibraryCycleGraphLoader.libraryCycleGraphOf(
           previousDepsLoader!,
           entrypointId,
         )).valueAt(phase: phaseNumber);
@@ -1420,8 +1416,9 @@ class FastBuild {
     }
 
     return lazyGlobs.putIfAbsent(globId, () async {
-      final globNodeConfiguration =
-          assetGraph.get(globId)!.globNodeConfiguration!;
+      final globNodeConfiguration = assetGraph
+          .get(globId)!
+          .globNodeConfiguration!;
       final glob = Glob(globNodeConfiguration.glob);
 
       // Generated files that match the glob.
@@ -1494,10 +1491,9 @@ class FastBuild {
   }) async {
     if (outputs.isEmpty) return;
     final inputTracker = stepReaderWriter.inputTracker;
-    final usedInputs =
-        unusedAssets != null && unusedAssets.isNotEmpty
-            ? inputTracker.inputs.difference(unusedAssets)
-            : inputTracker.inputs;
+    final usedInputs = unusedAssets != null && unusedAssets.isNotEmpty
+        ? inputTracker.inputs.difference(unusedAssets)
+        : inputTracker.inputs;
 
     final result = errors.isEmpty;
 

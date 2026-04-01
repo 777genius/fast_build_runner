@@ -21,6 +21,7 @@ class FastBuildRunProfile {
   final int buildShouldRunChangedGraphHits;
   final int trackedActionMilliseconds;
   final int trackedActionWallMilliseconds;
+  final Map<String, int> trackedStageWallMillisecondsByLabel;
   final int trackedPhaseMilliseconds;
   final int trackedBuilderActionCount;
   final int trackedBuildPhaseCount;
@@ -50,6 +51,7 @@ class FastBuildRunProfile {
     required this.buildShouldRunChangedGraphHits,
     required this.trackedActionMilliseconds,
     required this.trackedActionWallMilliseconds,
+    required this.trackedStageWallMillisecondsByLabel,
     required this.trackedPhaseMilliseconds,
     required this.trackedBuilderActionCount,
     required this.trackedBuildPhaseCount,
@@ -65,6 +67,9 @@ class FastBuildRunProfile {
 
   int get untrackedBuildRunMilliseconds =>
       math.max(0, buildRunMilliseconds - trackedActionMilliseconds);
+
+  int get trackedActionOverheadMilliseconds =>
+      math.max(0, trackedActionWallMilliseconds - trackedActionMilliseconds);
 
   Map<String, Object?> toJson() => {
     'freshnessCheckMilliseconds': freshnessCheckMilliseconds,
@@ -85,6 +90,7 @@ class FastBuildRunProfile {
     'buildShouldRunChangedGraphHits': buildShouldRunChangedGraphHits,
     'trackedActionMilliseconds': trackedActionMilliseconds,
     'trackedActionWallMilliseconds': trackedActionWallMilliseconds,
+    'trackedStageWallMillisecondsByLabel': trackedStageWallMillisecondsByLabel,
     'trackedPhaseMilliseconds': trackedPhaseMilliseconds,
     'trackedBuilderActionCount': trackedBuilderActionCount,
     'trackedBuildPhaseCount': trackedBuildPhaseCount,
@@ -94,57 +100,59 @@ class FastBuildRunProfile {
     'mergedOutputsMilliseconds': mergedOutputsMilliseconds,
     'resolverResetMilliseconds': resolverResetMilliseconds,
     'buildLogFinishMilliseconds': buildLogFinishMilliseconds,
-    'assetGraphSerializeProbeMilliseconds': assetGraphSerializeProbeMilliseconds,
+    'assetGraphSerializeProbeMilliseconds':
+        assetGraphSerializeProbeMilliseconds,
     'assetGraphSerializeProbeBytes': assetGraphSerializeProbeBytes,
     'untrackedBuildRunMilliseconds': untrackedBuildRunMilliseconds,
+    'trackedActionOverheadMilliseconds': trackedActionOverheadMilliseconds,
   };
 
-  static FastBuildRunProfile fromJson(Map<String, Object?> json) =>
-      FastBuildRunProfile(
-        freshnessCheckMilliseconds: json['freshnessCheckMilliseconds']! as int,
-        configReloadMilliseconds: json['configReloadMilliseconds']! as int,
-        buildRunMilliseconds: json['buildRunMilliseconds']! as int,
-        assetGraphUpdateMilliseconds:
-            json['assetGraphUpdateMilliseconds']! as int,
-        runPhasesMilliseconds: json['runPhasesMilliseconds']! as int,
-        phasedAssetDepsUpdateMilliseconds:
-            json['phasedAssetDepsUpdateMilliseconds']! as int,
-        matchingPrimaryInputsMilliseconds:
-            json['matchingPrimaryInputsMilliseconds']! as int,
-        buildShouldRunMilliseconds: json['buildShouldRunMilliseconds']! as int,
-        buildShouldRunInputCheckMilliseconds:
-            json['buildShouldRunInputCheckMilliseconds']! as int,
-        buildShouldRunGraphCheckMilliseconds:
-            json['buildShouldRunGraphCheckMilliseconds']! as int,
-        buildShouldRunInputCheckCount:
-            json['buildShouldRunInputCheckCount']! as int,
-        buildShouldRunGraphCheckCount:
-            json['buildShouldRunGraphCheckCount']! as int,
-        buildShouldRunChangedInputHits:
-            json['buildShouldRunChangedInputHits']! as int,
-        buildShouldRunChangedGraphHits:
-            json['buildShouldRunChangedGraphHits']! as int,
-        trackedActionMilliseconds: json['trackedActionMilliseconds']! as int,
-        trackedActionWallMilliseconds:
-            json['trackedActionWallMilliseconds']! as int,
-        trackedPhaseMilliseconds: json['trackedPhaseMilliseconds']! as int,
-        trackedBuilderActionCount: json['trackedBuilderActionCount']! as int,
-        trackedBuildPhaseCount: json['trackedBuildPhaseCount']! as int,
-        assetGraphPersistMilliseconds:
-            json['assetGraphPersistMilliseconds']! as int,
-        cacheFlushMilliseconds: json['cacheFlushMilliseconds']! as int,
-        resourceDisposeMilliseconds:
-            json['resourceDisposeMilliseconds']! as int,
-        mergedOutputsMilliseconds: json['mergedOutputsMilliseconds']! as int,
-        resolverResetMilliseconds:
-            json['resolverResetMilliseconds']! as int,
-        buildLogFinishMilliseconds:
-            json['buildLogFinishMilliseconds']! as int,
-        assetGraphSerializeProbeMilliseconds:
-            json['assetGraphSerializeProbeMilliseconds']! as int,
-        assetGraphSerializeProbeBytes:
-            json['assetGraphSerializeProbeBytes']! as int,
-      );
+  static FastBuildRunProfile fromJson(
+    Map<String, Object?> json,
+  ) => FastBuildRunProfile(
+    freshnessCheckMilliseconds: json['freshnessCheckMilliseconds']! as int,
+    configReloadMilliseconds: json['configReloadMilliseconds']! as int,
+    buildRunMilliseconds: json['buildRunMilliseconds']! as int,
+    assetGraphUpdateMilliseconds: json['assetGraphUpdateMilliseconds']! as int,
+    runPhasesMilliseconds: json['runPhasesMilliseconds']! as int,
+    phasedAssetDepsUpdateMilliseconds:
+        json['phasedAssetDepsUpdateMilliseconds']! as int,
+    matchingPrimaryInputsMilliseconds:
+        json['matchingPrimaryInputsMilliseconds']! as int,
+    buildShouldRunMilliseconds: json['buildShouldRunMilliseconds']! as int,
+    buildShouldRunInputCheckMilliseconds:
+        json['buildShouldRunInputCheckMilliseconds']! as int,
+    buildShouldRunGraphCheckMilliseconds:
+        json['buildShouldRunGraphCheckMilliseconds']! as int,
+    buildShouldRunInputCheckCount:
+        json['buildShouldRunInputCheckCount']! as int,
+    buildShouldRunGraphCheckCount:
+        json['buildShouldRunGraphCheckCount']! as int,
+    buildShouldRunChangedInputHits:
+        json['buildShouldRunChangedInputHits']! as int,
+    buildShouldRunChangedGraphHits:
+        json['buildShouldRunChangedGraphHits']! as int,
+    trackedActionMilliseconds: json['trackedActionMilliseconds']! as int,
+    trackedActionWallMilliseconds:
+        json['trackedActionWallMilliseconds']! as int,
+    trackedStageWallMillisecondsByLabel: Map<String, int>.from(
+      (json['trackedStageWallMillisecondsByLabel'] as Map?) ?? const {},
+    ),
+    trackedPhaseMilliseconds: json['trackedPhaseMilliseconds']! as int,
+    trackedBuilderActionCount: json['trackedBuilderActionCount']! as int,
+    trackedBuildPhaseCount: json['trackedBuildPhaseCount']! as int,
+    assetGraphPersistMilliseconds:
+        json['assetGraphPersistMilliseconds']! as int,
+    cacheFlushMilliseconds: json['cacheFlushMilliseconds']! as int,
+    resourceDisposeMilliseconds: json['resourceDisposeMilliseconds']! as int,
+    mergedOutputsMilliseconds: json['mergedOutputsMilliseconds']! as int,
+    resolverResetMilliseconds: json['resolverResetMilliseconds']! as int,
+    buildLogFinishMilliseconds: json['buildLogFinishMilliseconds']! as int,
+    assetGraphSerializeProbeMilliseconds:
+        json['assetGraphSerializeProbeMilliseconds']! as int,
+    assetGraphSerializeProbeBytes:
+        json['assetGraphSerializeProbeBytes']! as int,
+  );
 
   factory FastBuildRunProfile.fromBuildResult({
     required BuildResult buildResult,
@@ -205,9 +213,17 @@ class FastBuildRunProfile {
     try {
       var trackedActionMilliseconds = 0;
       var trackedActionWallMilliseconds = 0;
+      final trackedStageWallMillisecondsByLabel = <String, int>{};
       for (final action in performance.actions) {
         trackedActionMilliseconds += action.innerDuration.inMilliseconds;
         trackedActionWallMilliseconds += action.duration.inMilliseconds;
+        for (final stage in action.stages) {
+          trackedStageWallMillisecondsByLabel.update(
+            stage.label,
+            (value) => value + stage.duration.inMilliseconds,
+            ifAbsent: () => stage.duration.inMilliseconds,
+          );
+        }
       }
 
       var trackedPhaseMilliseconds = 0;
@@ -234,6 +250,8 @@ class FastBuildRunProfile {
         buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
         trackedActionMilliseconds: trackedActionMilliseconds,
         trackedActionWallMilliseconds: trackedActionWallMilliseconds,
+        trackedStageWallMillisecondsByLabel:
+            trackedStageWallMillisecondsByLabel,
         trackedPhaseMilliseconds: trackedPhaseMilliseconds,
         trackedBuilderActionCount: performance.actions.length,
         trackedBuildPhaseCount: performance.phases.length,
@@ -243,7 +261,8 @@ class FastBuildRunProfile {
         mergedOutputsMilliseconds: mergedOutputsMilliseconds,
         resolverResetMilliseconds: resolverResetMilliseconds,
         buildLogFinishMilliseconds: buildLogFinishMilliseconds,
-        assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeMilliseconds:
+            assetGraphSerializeProbeMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
     } on UnsupportedError {
@@ -270,7 +289,8 @@ class FastBuildRunProfile {
         mergedOutputsMilliseconds: mergedOutputsMilliseconds,
         resolverResetMilliseconds: resolverResetMilliseconds,
         buildLogFinishMilliseconds: buildLogFinishMilliseconds,
-        assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+        assetGraphSerializeProbeMilliseconds:
+            assetGraphSerializeProbeMilliseconds,
         assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
       );
     }
@@ -319,6 +339,7 @@ class FastBuildRunProfile {
       buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
       trackedActionMilliseconds: 0,
       trackedActionWallMilliseconds: 0,
+      trackedStageWallMillisecondsByLabel: const {},
       trackedPhaseMilliseconds: 0,
       trackedBuilderActionCount: 0,
       trackedBuildPhaseCount: 0,
@@ -328,7 +349,8 @@ class FastBuildRunProfile {
       mergedOutputsMilliseconds: mergedOutputsMilliseconds,
       resolverResetMilliseconds: resolverResetMilliseconds,
       buildLogFinishMilliseconds: buildLogFinishMilliseconds,
-      assetGraphSerializeProbeMilliseconds: assetGraphSerializeProbeMilliseconds,
+      assetGraphSerializeProbeMilliseconds:
+          assetGraphSerializeProbeMilliseconds,
       assetGraphSerializeProbeBytes: assetGraphSerializeProbeBytes,
     );
   }
