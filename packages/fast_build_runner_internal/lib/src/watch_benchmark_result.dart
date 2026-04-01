@@ -352,6 +352,78 @@ class FastWatchBenchmarkResult {
         'buildShouldRunMilliseconds',
       );
 
+  int? get dartIncrementalBuildShouldRunInputCheckMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunInputCheckMilliseconds',
+      );
+
+  int? get rustIncrementalBuildShouldRunInputCheckMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunInputCheckMilliseconds',
+      );
+
+  int? get dartIncrementalBuildShouldRunGraphCheckMilliseconds =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunGraphCheckMilliseconds',
+      );
+
+  int? get rustIncrementalBuildShouldRunGraphCheckMilliseconds =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunGraphCheckMilliseconds',
+      );
+
+  int? get dartIncrementalBuildShouldRunInputCheckCount =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunInputCheckCount',
+      );
+
+  int? get rustIncrementalBuildShouldRunInputCheckCount =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunInputCheckCount',
+      );
+
+  int? get dartIncrementalBuildShouldRunGraphCheckCount =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunGraphCheckCount',
+      );
+
+  int? get rustIncrementalBuildShouldRunGraphCheckCount =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunGraphCheckCount',
+      );
+
+  int? get dartIncrementalBuildShouldRunChangedInputHits =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunChangedInputHits',
+      );
+
+  int? get rustIncrementalBuildShouldRunChangedInputHits =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunChangedInputHits',
+      );
+
+  int? get dartIncrementalBuildShouldRunChangedGraphHits =>
+      _incrementalProfileMetric(
+        dart.result.incrementalBuild?.profile,
+        'buildShouldRunChangedGraphHits',
+      );
+
+  int? get rustIncrementalBuildShouldRunChangedGraphHits =>
+      _incrementalProfileMetric(
+        rust.result.incrementalBuild?.profile,
+        'buildShouldRunChangedGraphHits',
+      );
+
   int? get rustIncrementalTrackedActionMilliseconds =>
       _incrementalProfileMetric(
         rust.result.incrementalBuild?.profile,
@@ -718,6 +790,30 @@ class FastWatchBenchmarkResult {
         'dartIncrementalBuildShouldRunMilliseconds: $dartIncrementalBuildShouldRunMilliseconds ms',
       if (rustIncrementalBuildShouldRunMilliseconds != null)
         'rustIncrementalBuildShouldRunMilliseconds: $rustIncrementalBuildShouldRunMilliseconds ms',
+      if (dartIncrementalBuildShouldRunInputCheckMilliseconds != null)
+        'dartIncrementalBuildShouldRunInputCheckMilliseconds: $dartIncrementalBuildShouldRunInputCheckMilliseconds ms',
+      if (rustIncrementalBuildShouldRunInputCheckMilliseconds != null)
+        'rustIncrementalBuildShouldRunInputCheckMilliseconds: $rustIncrementalBuildShouldRunInputCheckMilliseconds ms',
+      if (dartIncrementalBuildShouldRunGraphCheckMilliseconds != null)
+        'dartIncrementalBuildShouldRunGraphCheckMilliseconds: $dartIncrementalBuildShouldRunGraphCheckMilliseconds ms',
+      if (rustIncrementalBuildShouldRunGraphCheckMilliseconds != null)
+        'rustIncrementalBuildShouldRunGraphCheckMilliseconds: $rustIncrementalBuildShouldRunGraphCheckMilliseconds ms',
+      if (dartIncrementalBuildShouldRunInputCheckCount != null)
+        'dartIncrementalBuildShouldRunInputCheckCount: $dartIncrementalBuildShouldRunInputCheckCount',
+      if (rustIncrementalBuildShouldRunInputCheckCount != null)
+        'rustIncrementalBuildShouldRunInputCheckCount: $rustIncrementalBuildShouldRunInputCheckCount',
+      if (dartIncrementalBuildShouldRunGraphCheckCount != null)
+        'dartIncrementalBuildShouldRunGraphCheckCount: $dartIncrementalBuildShouldRunGraphCheckCount',
+      if (rustIncrementalBuildShouldRunGraphCheckCount != null)
+        'rustIncrementalBuildShouldRunGraphCheckCount: $rustIncrementalBuildShouldRunGraphCheckCount',
+      if (dartIncrementalBuildShouldRunChangedInputHits != null)
+        'dartIncrementalBuildShouldRunChangedInputHits: $dartIncrementalBuildShouldRunChangedInputHits',
+      if (rustIncrementalBuildShouldRunChangedInputHits != null)
+        'rustIncrementalBuildShouldRunChangedInputHits: $rustIncrementalBuildShouldRunChangedInputHits',
+      if (dartIncrementalBuildShouldRunChangedGraphHits != null)
+        'dartIncrementalBuildShouldRunChangedGraphHits: $dartIncrementalBuildShouldRunChangedGraphHits',
+      if (rustIncrementalBuildShouldRunChangedGraphHits != null)
+        'rustIncrementalBuildShouldRunChangedGraphHits: $rustIncrementalBuildShouldRunChangedGraphHits',
       if (dartIncrementalFreshnessCheckMilliseconds != null)
         'dartIncrementalFreshnessCheckMilliseconds: $dartIncrementalFreshnessCheckMilliseconds ms',
       if (rustIncrementalFreshnessCheckMilliseconds != null)

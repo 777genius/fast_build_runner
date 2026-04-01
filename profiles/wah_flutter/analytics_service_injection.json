@@ -1,21 +1,15 @@
 {
   "name": "wah_flutter analytics service injection",
-  "sourceFileRelativePath": "lib/core/services/analytics_service.dart",
+  "sourceFileRelativePath": "lib/core/injection/register_module.dart",
   "generatedFileRelativePath": "lib/core/injection/injection.config.dart",
   "steps": [
     {
-      "name": "inject response helper",
-      "generatedMarkers": [
-        "AnalyticsService(gh<_i354.AppLogger>(), gh<_i661.ResponseHelper>())"
-      ],
+      "name": "add analytics endpoint provider",
+      "generatedMarkers": ["provideAnalyticsEndpoint()"],
       "replacements": [
         {
-          "from": "import 'package:injectable/injectable.dart';\nimport '../logging/app_logger.dart';\n",
-          "to": "import 'package:injectable/injectable.dart';\nimport '../logging/app_logger.dart';\nimport '../utils/response_helper.dart';\n"
-        },
-        {
-          "from": "class AnalyticsService {\n  final AppLogger _logger;\n\n  AnalyticsService(this._logger);\n",
-          "to": "class AnalyticsService {\n  final AppLogger _logger;\n  final ResponseHelper _responseHelper;\n\n  AnalyticsService(this._logger, this._responseHelper);\n"
+          "from": "  /// App logger (DI)\n  @lazySingleton\n  AppLogger provideAppLogger() => const AppLogger();\n}\n",
+          "to": "  /// App logger (DI)\n  @lazySingleton\n  AppLogger provideAppLogger() => const AppLogger();\n\n  /// Analytics endpoint label for diagnostics.\n  @Named('analytics_endpoint')\n  String provideAnalyticsEndpoint() => 'analytics';\n}\n"
         }
       ]
     }

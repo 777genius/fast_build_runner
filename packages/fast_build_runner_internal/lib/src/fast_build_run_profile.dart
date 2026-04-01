@@ -13,6 +13,12 @@ class FastBuildRunProfile {
   final int phasedAssetDepsUpdateMilliseconds;
   final int matchingPrimaryInputsMilliseconds;
   final int buildShouldRunMilliseconds;
+  final int buildShouldRunInputCheckMilliseconds;
+  final int buildShouldRunGraphCheckMilliseconds;
+  final int buildShouldRunInputCheckCount;
+  final int buildShouldRunGraphCheckCount;
+  final int buildShouldRunChangedInputHits;
+  final int buildShouldRunChangedGraphHits;
   final int trackedActionMilliseconds;
   final int trackedActionWallMilliseconds;
   final int trackedPhaseMilliseconds;
@@ -36,6 +42,12 @@ class FastBuildRunProfile {
     required this.phasedAssetDepsUpdateMilliseconds,
     required this.matchingPrimaryInputsMilliseconds,
     required this.buildShouldRunMilliseconds,
+    required this.buildShouldRunInputCheckMilliseconds,
+    required this.buildShouldRunGraphCheckMilliseconds,
+    required this.buildShouldRunInputCheckCount,
+    required this.buildShouldRunGraphCheckCount,
+    required this.buildShouldRunChangedInputHits,
+    required this.buildShouldRunChangedGraphHits,
     required this.trackedActionMilliseconds,
     required this.trackedActionWallMilliseconds,
     required this.trackedPhaseMilliseconds,
@@ -63,6 +75,14 @@ class FastBuildRunProfile {
     'phasedAssetDepsUpdateMilliseconds': phasedAssetDepsUpdateMilliseconds,
     'matchingPrimaryInputsMilliseconds': matchingPrimaryInputsMilliseconds,
     'buildShouldRunMilliseconds': buildShouldRunMilliseconds,
+    'buildShouldRunInputCheckMilliseconds':
+        buildShouldRunInputCheckMilliseconds,
+    'buildShouldRunGraphCheckMilliseconds':
+        buildShouldRunGraphCheckMilliseconds,
+    'buildShouldRunInputCheckCount': buildShouldRunInputCheckCount,
+    'buildShouldRunGraphCheckCount': buildShouldRunGraphCheckCount,
+    'buildShouldRunChangedInputHits': buildShouldRunChangedInputHits,
+    'buildShouldRunChangedGraphHits': buildShouldRunChangedGraphHits,
     'trackedActionMilliseconds': trackedActionMilliseconds,
     'trackedActionWallMilliseconds': trackedActionWallMilliseconds,
     'trackedPhaseMilliseconds': trackedPhaseMilliseconds,
@@ -92,6 +112,18 @@ class FastBuildRunProfile {
         matchingPrimaryInputsMilliseconds:
             json['matchingPrimaryInputsMilliseconds']! as int,
         buildShouldRunMilliseconds: json['buildShouldRunMilliseconds']! as int,
+        buildShouldRunInputCheckMilliseconds:
+            json['buildShouldRunInputCheckMilliseconds']! as int,
+        buildShouldRunGraphCheckMilliseconds:
+            json['buildShouldRunGraphCheckMilliseconds']! as int,
+        buildShouldRunInputCheckCount:
+            json['buildShouldRunInputCheckCount']! as int,
+        buildShouldRunGraphCheckCount:
+            json['buildShouldRunGraphCheckCount']! as int,
+        buildShouldRunChangedInputHits:
+            json['buildShouldRunChangedInputHits']! as int,
+        buildShouldRunChangedGraphHits:
+            json['buildShouldRunChangedGraphHits']! as int,
         trackedActionMilliseconds: json['trackedActionMilliseconds']! as int,
         trackedActionWallMilliseconds:
             json['trackedActionWallMilliseconds']! as int,
@@ -124,6 +156,12 @@ class FastBuildRunProfile {
     required int phasedAssetDepsUpdateMilliseconds,
     required int matchingPrimaryInputsMilliseconds,
     required int buildShouldRunMilliseconds,
+    required int buildShouldRunInputCheckMilliseconds,
+    required int buildShouldRunGraphCheckMilliseconds,
+    required int buildShouldRunInputCheckCount,
+    required int buildShouldRunGraphCheckCount,
+    required int buildShouldRunChangedInputHits,
+    required int buildShouldRunChangedGraphHits,
     required int assetGraphPersistMilliseconds,
     required int cacheFlushMilliseconds,
     required int resourceDisposeMilliseconds,
@@ -144,6 +182,14 @@ class FastBuildRunProfile {
         phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
         matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
         buildShouldRunMilliseconds: buildShouldRunMilliseconds,
+        buildShouldRunInputCheckMilliseconds:
+            buildShouldRunInputCheckMilliseconds,
+        buildShouldRunGraphCheckMilliseconds:
+            buildShouldRunGraphCheckMilliseconds,
+        buildShouldRunInputCheckCount: buildShouldRunInputCheckCount,
+        buildShouldRunGraphCheckCount: buildShouldRunGraphCheckCount,
+        buildShouldRunChangedInputHits: buildShouldRunChangedInputHits,
+        buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
         assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         cacheFlushMilliseconds: cacheFlushMilliseconds,
         resourceDisposeMilliseconds: resourceDisposeMilliseconds,
@@ -178,6 +224,14 @@ class FastBuildRunProfile {
         phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
         matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
         buildShouldRunMilliseconds: buildShouldRunMilliseconds,
+        buildShouldRunInputCheckMilliseconds:
+            buildShouldRunInputCheckMilliseconds,
+        buildShouldRunGraphCheckMilliseconds:
+            buildShouldRunGraphCheckMilliseconds,
+        buildShouldRunInputCheckCount: buildShouldRunInputCheckCount,
+        buildShouldRunGraphCheckCount: buildShouldRunGraphCheckCount,
+        buildShouldRunChangedInputHits: buildShouldRunChangedInputHits,
+        buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
         trackedActionMilliseconds: trackedActionMilliseconds,
         trackedActionWallMilliseconds: trackedActionWallMilliseconds,
         trackedPhaseMilliseconds: trackedPhaseMilliseconds,
@@ -202,6 +256,14 @@ class FastBuildRunProfile {
         phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
         matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
         buildShouldRunMilliseconds: buildShouldRunMilliseconds,
+        buildShouldRunInputCheckMilliseconds:
+            buildShouldRunInputCheckMilliseconds,
+        buildShouldRunGraphCheckMilliseconds:
+            buildShouldRunGraphCheckMilliseconds,
+        buildShouldRunInputCheckCount: buildShouldRunInputCheckCount,
+        buildShouldRunGraphCheckCount: buildShouldRunGraphCheckCount,
+        buildShouldRunChangedInputHits: buildShouldRunChangedInputHits,
+        buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
         assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         cacheFlushMilliseconds: cacheFlushMilliseconds,
         resourceDisposeMilliseconds: resourceDisposeMilliseconds,
@@ -223,6 +285,12 @@ class FastBuildRunProfile {
     required int phasedAssetDepsUpdateMilliseconds,
     required int matchingPrimaryInputsMilliseconds,
     required int buildShouldRunMilliseconds,
+    required int buildShouldRunInputCheckMilliseconds,
+    required int buildShouldRunGraphCheckMilliseconds,
+    required int buildShouldRunInputCheckCount,
+    required int buildShouldRunGraphCheckCount,
+    required int buildShouldRunChangedInputHits,
+    required int buildShouldRunChangedGraphHits,
     required int assetGraphPersistMilliseconds,
     required int cacheFlushMilliseconds,
     required int resourceDisposeMilliseconds,
@@ -241,6 +309,14 @@ class FastBuildRunProfile {
       phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
       matchingPrimaryInputsMilliseconds: matchingPrimaryInputsMilliseconds,
       buildShouldRunMilliseconds: buildShouldRunMilliseconds,
+      buildShouldRunInputCheckMilliseconds:
+          buildShouldRunInputCheckMilliseconds,
+      buildShouldRunGraphCheckMilliseconds:
+          buildShouldRunGraphCheckMilliseconds,
+      buildShouldRunInputCheckCount: buildShouldRunInputCheckCount,
+      buildShouldRunGraphCheckCount: buildShouldRunGraphCheckCount,
+      buildShouldRunChangedInputHits: buildShouldRunChangedInputHits,
+      buildShouldRunChangedGraphHits: buildShouldRunChangedGraphHits,
       trackedActionMilliseconds: 0,
       trackedActionWallMilliseconds: 0,
       trackedPhaseMilliseconds: 0,

@@ -55,6 +55,12 @@ class FastBuildInternalMetrics {
   final int phasedAssetDepsUpdateMilliseconds;
   final int matchingPrimaryInputsMilliseconds;
   final int buildShouldRunMilliseconds;
+  final int buildShouldRunInputCheckMilliseconds;
+  final int buildShouldRunGraphCheckMilliseconds;
+  final int buildShouldRunInputCheckCount;
+  final int buildShouldRunGraphCheckCount;
+  final int buildShouldRunChangedInputHits;
+  final int buildShouldRunChangedGraphHits;
   final int assetGraphPersistMilliseconds;
   final int cacheFlushMilliseconds;
   final int resourceDisposeMilliseconds;
@@ -68,6 +74,12 @@ class FastBuildInternalMetrics {
     required this.phasedAssetDepsUpdateMilliseconds,
     required this.matchingPrimaryInputsMilliseconds,
     required this.buildShouldRunMilliseconds,
+    required this.buildShouldRunInputCheckMilliseconds,
+    required this.buildShouldRunGraphCheckMilliseconds,
+    required this.buildShouldRunInputCheckCount,
+    required this.buildShouldRunGraphCheckCount,
+    required this.buildShouldRunChangedInputHits,
+    required this.buildShouldRunChangedGraphHits,
     required this.assetGraphPersistMilliseconds,
     required this.cacheFlushMilliseconds,
     required this.resourceDisposeMilliseconds,
@@ -82,6 +94,12 @@ class FastBuildInternalMetrics {
     phasedAssetDepsUpdateMilliseconds: 0,
     matchingPrimaryInputsMilliseconds: 0,
     buildShouldRunMilliseconds: 0,
+    buildShouldRunInputCheckMilliseconds: 0,
+    buildShouldRunGraphCheckMilliseconds: 0,
+    buildShouldRunInputCheckCount: 0,
+    buildShouldRunGraphCheckCount: 0,
+    buildShouldRunChangedInputHits: 0,
+    buildShouldRunChangedGraphHits: 0,
     assetGraphPersistMilliseconds: 0,
     cacheFlushMilliseconds: 0,
     resourceDisposeMilliseconds: 0,
@@ -96,6 +114,12 @@ class FastBuildInternalMetrics {
     int? phasedAssetDepsUpdateMilliseconds,
     int? matchingPrimaryInputsMilliseconds,
     int? buildShouldRunMilliseconds,
+    int? buildShouldRunInputCheckMilliseconds,
+    int? buildShouldRunGraphCheckMilliseconds,
+    int? buildShouldRunInputCheckCount,
+    int? buildShouldRunGraphCheckCount,
+    int? buildShouldRunChangedInputHits,
+    int? buildShouldRunChangedGraphHits,
     int? assetGraphPersistMilliseconds,
     int? cacheFlushMilliseconds,
     int? resourceDisposeMilliseconds,
@@ -116,6 +140,22 @@ class FastBuildInternalMetrics {
           this.matchingPrimaryInputsMilliseconds,
       buildShouldRunMilliseconds:
           buildShouldRunMilliseconds ?? this.buildShouldRunMilliseconds,
+      buildShouldRunInputCheckMilliseconds:
+          buildShouldRunInputCheckMilliseconds ??
+          this.buildShouldRunInputCheckMilliseconds,
+      buildShouldRunGraphCheckMilliseconds:
+          buildShouldRunGraphCheckMilliseconds ??
+          this.buildShouldRunGraphCheckMilliseconds,
+      buildShouldRunInputCheckCount:
+          buildShouldRunInputCheckCount ?? this.buildShouldRunInputCheckCount,
+      buildShouldRunGraphCheckCount:
+          buildShouldRunGraphCheckCount ?? this.buildShouldRunGraphCheckCount,
+      buildShouldRunChangedInputHits:
+          buildShouldRunChangedInputHits ??
+          this.buildShouldRunChangedInputHits,
+      buildShouldRunChangedGraphHits:
+          buildShouldRunChangedGraphHits ??
+          this.buildShouldRunChangedGraphHits,
       assetGraphPersistMilliseconds:
           assetGraphPersistMilliseconds ?? this.assetGraphPersistMilliseconds,
       cacheFlushMilliseconds:
@@ -211,6 +251,12 @@ class FastBuild {
   FastBuildInternalMetrics _lastRunMetrics = FastBuildInternalMetrics.zero;
   int _matchingPrimaryInputsMilliseconds = 0;
   int _buildShouldRunMilliseconds = 0;
+  int _buildShouldRunInputCheckMilliseconds = 0;
+  int _buildShouldRunGraphCheckMilliseconds = 0;
+  int _buildShouldRunInputCheckCount = 0;
+  int _buildShouldRunGraphCheckCount = 0;
+  int _buildShouldRunChangedInputHits = 0;
+  int _buildShouldRunChangedGraphHits = 0;
 
   FastBuild({
     required this.buildPlan,
@@ -253,6 +299,12 @@ class FastBuild {
     _lastRunMetrics = FastBuildInternalMetrics.zero;
     _matchingPrimaryInputsMilliseconds = 0;
     _buildShouldRunMilliseconds = 0;
+    _buildShouldRunInputCheckMilliseconds = 0;
+    _buildShouldRunGraphCheckMilliseconds = 0;
+    _buildShouldRunInputCheckCount = 0;
+    _buildShouldRunGraphCheckCount = 0;
+    _buildShouldRunChangedInputHits = 0;
+    _buildShouldRunChangedGraphHits = 0;
     buildLog.configuration = buildLog.configuration.rebuild(
       (b) => b..singleOutputPackage = buildPackages.singleOutputPackage,
     );
@@ -440,6 +492,14 @@ class FastBuild {
           phasedAssetDepsUpdateMilliseconds: phasedAssetDepsUpdateMilliseconds,
           matchingPrimaryInputsMilliseconds: _matchingPrimaryInputsMilliseconds,
           buildShouldRunMilliseconds: _buildShouldRunMilliseconds,
+          buildShouldRunInputCheckMilliseconds:
+              _buildShouldRunInputCheckMilliseconds,
+          buildShouldRunGraphCheckMilliseconds:
+              _buildShouldRunGraphCheckMilliseconds,
+          buildShouldRunInputCheckCount: _buildShouldRunInputCheckCount,
+          buildShouldRunGraphCheckCount: _buildShouldRunGraphCheckCount,
+          buildShouldRunChangedInputHits: _buildShouldRunChangedInputHits,
+          buildShouldRunChangedGraphHits: _buildShouldRunChangedGraphHits,
           assetGraphPersistMilliseconds: assetGraphPersistMilliseconds,
         );
       },
@@ -1062,19 +1122,34 @@ class FastBuild {
       // Check for changes to any inputs.
       final inputs = firstOutputState.inputs;
       for (final input in inputs) {
+        _buildShouldRunInputCheckCount++;
+        final inputCheckStopwatch = Stopwatch()..start();
         final changed = await _hasInputChanged(
           phaseNumber: phaseNumber,
           input: input,
         );
+        inputCheckStopwatch.stop();
+        _buildShouldRunInputCheckMilliseconds +=
+            inputCheckStopwatch.elapsedMilliseconds;
 
-        if (changed) return true;
+        if (changed) {
+          _buildShouldRunChangedInputHits++;
+          return true;
+        }
       }
 
       for (final graphId in firstOutputState.resolverEntrypoints) {
-        if (await _hasInputGraphChanged(
+        _buildShouldRunGraphCheckCount++;
+        final graphCheckStopwatch = Stopwatch()..start();
+        final changed = await _hasInputGraphChanged(
           phaseNumber: phaseNumber,
           entrypointId: graphId,
-        )) {
+        );
+        graphCheckStopwatch.stop();
+        _buildShouldRunGraphCheckMilliseconds +=
+            graphCheckStopwatch.elapsedMilliseconds;
+        if (changed) {
+          _buildShouldRunChangedGraphHits++;
           return true;
         }
       }
