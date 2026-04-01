@@ -241,6 +241,7 @@ class FastBuild {
   /// Whether a graph from [previousLibraryCycleGraphLoader] has any changed
   /// transitive source.
   final Map<LibraryCycleGraph, bool> changedGraphs = Map.identity();
+  final Map<(AssetId, int), Future<bool>> _inputChangedCache = {};
 
   /// The build output.
   BuildOutputReader? _buildOutputReader;
@@ -330,6 +331,7 @@ class FastBuild {
     _buildShouldRunGraphCheckCount = 0;
     _buildShouldRunChangedInputHits = 0;
     _buildShouldRunChangedGraphHits = 0;
+    _inputChangedCache.clear();
     buildLog.configuration = buildLog.configuration.rebuild(
       (b) => b..singleOutputPackage = buildPackages.singleOutputPackage,
     );
@@ -1336,37 +1338,40 @@ class FastBuild {
     required int phaseNumber,
   }) async {
     final input = inputNode.id;
-    if (inputNode.type == NodeType.generated) {
-      if (inputNode.generatedNodeConfiguration!.phaseNumber >= phaseNumber) {
-        // It's not readable in this phase.
-        return false;
+    final cacheKey = (input, phaseNumber);
+    return _inputChangedCache.putIfAbsent(cacheKey, () async {
+      if (inputNode.type == NodeType.generated) {
+        if (inputNode.generatedNodeConfiguration!.phaseNumber >= phaseNumber) {
+          // It's not readable in this phase.
+          return false;
+        }
+        // Ensure that the input was built, so [changedOutputs] is updated.
+        if (!processedOutputs.contains(input)) {
+          await _buildOutput(inputNode.id);
+        }
+        if (changedOutputs.contains(input)) {
+          return true;
+        }
+      } else if (inputNode.type == NodeType.glob) {
+        // Ensure that the glob was evaluated, so [changedOutputs] is updated.
+        if (!processedGlobs.contains(input)) {
+          await _buildGlobNode(input);
+        }
+        if (changedOutputs.contains(input)) {
+          return true;
+        }
+      } else if (inputNode.type == NodeType.source) {
+        if (changedInputs.contains(input)) {
+          return true;
+        }
+      } else if (inputNode.type == NodeType.missingSource) {
+        // It's only a newly-deleted asset if it's also in [deletedAssets].
+        if (deletedAssets.contains(input)) {
+          return true;
+        }
       }
-      // Ensure that the input was built, so [changedOutputs] is updated.
-      if (!processedOutputs.contains(input)) {
-        await _buildOutput(inputNode.id);
-      }
-      if (changedOutputs.contains(input)) {
-        return true;
-      }
-    } else if (inputNode.type == NodeType.glob) {
-      // Ensure that the glob was evaluated, so [changedOutputs] is updated.
-      if (!processedGlobs.contains(input)) {
-        await _buildGlobNode(input);
-      }
-      if (changedOutputs.contains(input)) {
-        return true;
-      }
-    } else if (inputNode.type == NodeType.source) {
-      if (changedInputs.contains(input)) {
-        return true;
-      }
-    } else if (inputNode.type == NodeType.missingSource) {
-      // It's only a newly-deleted asset if it's also in [deletedAssets].
-      if (deletedAssets.contains(input)) {
-        return true;
-      }
-    }
-    return false;
+      return false;
+    });
   }
 
   /// Whether the post process build step [buildStepId] should run.
