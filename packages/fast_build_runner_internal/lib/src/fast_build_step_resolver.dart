@@ -26,10 +26,12 @@ class FastBuildStepResolver implements ReleasableResolver {
   final BuildResolver _buildResolver;
   final BuildStepImpl _buildStep;
   final Map<String, Future<void>> _sharedResolveSyncCache;
+  final Map<String, Future<List<LibraryElement>>> _sharedLibrariesCache;
 
   final _entryPoints = <AssetId>{};
   final _nonTransitiveSyncedEntrypoints = <AssetId>{};
   final _perActionResolvePool = Pool(1);
+  Future<List<LibraryElement>>? _librariesCache;
 
   final _canReadCache = <AssetId, Future<bool>>{};
   final _isLibraryCache = <AssetId, Future<bool>>{};
@@ -40,7 +42,9 @@ class FastBuildStepResolver implements ReleasableResolver {
     this._buildResolver,
     this._buildStep, {
     required Map<String, Future<void>> sharedResolveSyncCache,
-  }) : _sharedResolveSyncCache = sharedResolveSyncCache;
+    required Map<String, Future<List<LibraryElement>>> sharedLibrariesCache,
+  }) : _sharedResolveSyncCache = sharedResolveSyncCache,
+       _sharedLibrariesCache = sharedLibrariesCache;
 
   Stream<LibraryElement> get _librariesFromEntrypoints async* {
     await _updateDriverForEntrypoint(_buildStep.inputId, transitive: true);
@@ -76,16 +80,42 @@ class FastBuildStepResolver implements ReleasableResolver {
     }
   }
 
-  @override
-  Stream<LibraryElement> get libraries async* {
-    yield* _buildResolver.sdkLibraries;
-    yield* _librariesFromEntrypoints.where((library) => !library.isInSdk);
+  Future<List<LibraryElement>> _collectLibraries() async {
+    final libraries = <LibraryElement>[];
+    await for (final library in _buildResolver.sdkLibraries) {
+      libraries.add(library);
+    }
+    await for (final library
+        in _librariesFromEntrypoints.where((library) => !library.isInSdk)) {
+      libraries.add(library);
+    }
+    return libraries;
   }
+
+  @override
+  Stream<LibraryElement> get libraries =>
+      Stream.fromFuture(
+        _librariesCache ??= _sharedLibrariesCache.putIfAbsent(
+          _sharedLibrariesKey(
+            inputId: _buildStep.inputId,
+            phase: _buildStep.phasedReader.phase,
+          ),
+          _collectLibraries,
+        ),
+      ).expand((libraries) => libraries);
 
   @override
   Future<LibraryElement?> findLibraryByName(String libraryName) =>
       _buildStep.trackStage('findLibraryByName $libraryName', () async {
-        await for (final library in libraries) {
+        final cachedLibraries =
+            await (_librariesCache ??= _sharedLibrariesCache.putIfAbsent(
+              _sharedLibrariesKey(
+                inputId: _buildStep.inputId,
+                phase: _buildStep.phasedReader.phase,
+              ),
+              _collectLibraries,
+            ));
+        for (final library in cachedLibraries) {
           if (library.name == libraryName) return library;
         }
         return null;
@@ -173,15 +203,21 @@ class FastBuildStepResolver implements ReleasableResolver {
     });
   }
 
-  Future<void> _updateDriverForEntrypoint(
+  Future<String> _updateDriverForEntrypoint(
     AssetId entrypoint, {
     required bool transitive,
   }) => _perActionResolvePool.withResource(() async {
     final phase = _buildStep.phasedReader.phase;
     if (transitive) {
-      if (_entryPoints.contains(entrypoint)) return;
+      if (_entryPoints.contains(entrypoint)) {
+        return _sharedResolveKey(
+          entrypoint: entrypoint,
+          phase: phase,
+          transitive: true,
+        );
+      }
       _buildStep.inputTracker.addResolverEntrypoint(entrypoint);
-      await _sharedSync(
+      final syncKey = await _sharedSync(
         entrypoint,
         phase: phase,
         transitive: true,
@@ -197,16 +233,27 @@ class FastBuildStepResolver implements ReleasableResolver {
       );
       _entryPoints.add(entrypoint);
       _nonTransitiveSyncedEntrypoints.add(entrypoint);
-      return;
+      return syncKey;
     }
 
-    if (_entryPoints.contains(entrypoint) ||
-        _nonTransitiveSyncedEntrypoints.contains(entrypoint)) {
-      return;
+    if (_entryPoints.contains(entrypoint)) {
+      return _sharedResolveKey(
+        entrypoint: entrypoint,
+        phase: phase,
+        transitive: true,
+      );
+    }
+
+    if (_nonTransitiveSyncedEntrypoints.contains(entrypoint)) {
+      return _sharedResolveKey(
+        entrypoint: entrypoint,
+        phase: phase,
+        transitive: false,
+      );
     }
 
     _buildStep.inputTracker.add(entrypoint);
-    await _sharedSync(
+    final syncKey = await _sharedSync(
       entrypoint,
       phase: phase,
       transitive: false,
@@ -221,9 +268,10 @@ class FastBuildStepResolver implements ReleasableResolver {
       ),
     );
     _nonTransitiveSyncedEntrypoints.add(entrypoint);
+    return syncKey;
   });
 
-  Future<void> _sharedSync(
+  Future<String> _sharedSync(
     AssetId entrypoint, {
     required int phase,
     required bool transitive,
@@ -245,13 +293,13 @@ class FastBuildStepResolver implements ReleasableResolver {
     final compatibleFuture = _sharedResolveSyncCache[compatibleKey];
     if (compatibleFuture != null) {
       await compatibleFuture;
-      return;
+      return compatibleKey;
     }
 
     final existingFuture = _sharedResolveSyncCache[requestedKey];
     if (existingFuture != null) {
       await existingFuture;
-      return;
+      return requestedKey;
     }
 
     late final Future<void> resolveFuture;
@@ -261,6 +309,7 @@ class FastBuildStepResolver implements ReleasableResolver {
     });
     _sharedResolveSyncCache[requestedKey] = resolveFuture;
     await resolveFuture;
+    return requestedKey;
   }
 
   @override
@@ -292,3 +341,6 @@ String _sharedResolveKey({
   required int phase,
   required bool transitive,
 }) => '${entrypoint.package}|${entrypoint.path}|$phase|$transitive';
+
+String _sharedLibrariesKey({required AssetId inputId, required int phase}) =>
+    '${inputId.package}|${inputId.path}|$phase|libraries';

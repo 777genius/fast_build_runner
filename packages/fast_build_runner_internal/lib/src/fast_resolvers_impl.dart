@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:analyzer/dart/analysis/features.dart';
+import 'package:analyzer/dart/element/element.dart';
 import 'package:analyzer/src/dart/analysis/analysis_options.dart';
 import 'package:analyzer/src/dart/analysis/experiments.dart';
 import 'package:build/build.dart';
@@ -26,6 +27,7 @@ class FastResolversImpl implements Resolvers {
   final _initializationPool = Pool(1);
   final _driverPool = Pool(1);
   final _sharedResolveSyncCache = <String, Future<void>>{};
+  final _sharedLibrariesCache = <String, Future<List<LibraryElement>>>{};
 
   BuildResolver? _buildResolver;
   AnalysisDriverModel _analysisDriverModel;
@@ -70,11 +72,13 @@ class FastResolversImpl implements Resolvers {
       _buildResolver!,
       buildStep as BuildStepImpl,
       sharedResolveSyncCache: _sharedResolveSyncCache,
+      sharedLibrariesCache: _sharedLibrariesCache,
     );
   }
 
   Future<void> takeLockAndStartBuild(AssetGraph assetGraph) {
     _sharedResolveSyncCache.clear();
+    _sharedLibrariesCache.clear();
     return _analysisDriverModel.takeLockAndStartBuild(assetGraph);
   }
 
@@ -83,6 +87,7 @@ class FastResolversImpl implements Resolvers {
   @override
   void reset() {
     _sharedResolveSyncCache.clear();
+    _sharedLibrariesCache.clear();
     _analysisDriverModel.endBuildAndUnlock();
   }
 }
