@@ -1,12 +1,15 @@
 name: fast_build_runner_internal
-publish_to: none
+description: Internal runtime and hot-path implementation for fast_build_runner.
+version: 0.1.0
+repository: https://github.com/777genius/fast_build_runner
+homepage: https://github.com/777genius/fast_build_runner
 environment:
   sdk: ^3.10.0
 
 dependencies:
-  analyzer: ^9.0.0
-  build: any
-  build_runner: any
+  analyzer: ^12.0.0
+  build: ^4.0.5
+  build_runner: ^2.13.1
   built_collection: ^5.1.1
   collection: ^1.19.1
   code_builder: ^4.11.0

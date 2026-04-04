@@ -579,10 +579,7 @@ class FastBuild {
         }
       }
 
-      buildLog.startPhases(
-        primaryInputCountsByPhase,
-        buildPackages: buildPackages,
-      );
+      buildLog.startPhases(primaryInputCountsByPhase);
 
       // Main build phases.
       for (
@@ -988,10 +985,7 @@ class FastBuild {
       nodeBuilder.deletedBy.remove(postProcessBuildStepId);
     });
 
-    final logger = buildLog.loggerForOther(
-      buildLog.renderId(input),
-      contextId: input,
-    );
+    final logger = buildLog.loggerForOther(buildLog.renderId(input));
     final outputs = <AssetId>{};
     await runPostProcessBuilder(
       builder,
