@@ -13,6 +13,8 @@ Current best public signal:
 - generated Dart outputs verified to match upstream on a large real Flutter app
 - one-shot `build` stays on the upstream `build_runner build` path
 - the current optimization target is the watch / incremental workflow
+- the main Dart runtime / hot-path code lives in
+  [`packages/fast_build_runner_internal/lib/src/`](./packages/fast_build_runner_internal/lib/src/)
 
 ## Start Fast
 
