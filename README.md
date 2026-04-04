@@ -39,7 +39,6 @@ Current best public signal:
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
 - ✅ Generated Dart outputs currently match upstream byte-for-byte in the Dart mode
 - ⚠️ Rust mode is still experimental
-- ⚠️ Coverage is strongest today for real watch / incremental workflows
 
 ## What This Project Is
 
