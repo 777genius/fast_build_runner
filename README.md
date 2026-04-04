@@ -31,7 +31,7 @@ fast_build_runner build --delete-conflicting-outputs
 Use the fast runtime for watch / incremental experiments:
 
 ```bash
-fast_build_runner spike-watch
+fast_build_runner spike-watch --delete-conflicting-outputs
 ```
 
 If you want to run directly from the local source checkout instead:

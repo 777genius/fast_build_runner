@@ -13,6 +13,7 @@ class FastWatchAlphaRequest {
   final int extraFixtureModels;
   final int settleBuildDelayMs;
   final bool trustBuildScriptFreshness;
+  final bool deleteConflictingOutputs;
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
@@ -29,5 +30,6 @@ class FastWatchAlphaRequest {
     this.extraFixtureModels = 0,
     this.settleBuildDelayMs = 0,
     this.trustBuildScriptFreshness = true,
+    this.deleteConflictingOutputs = false,
   });
 }

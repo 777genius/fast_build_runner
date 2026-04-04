@@ -232,6 +232,7 @@ class FastWatchAlphaRunner {
             '--continuous-scheduling=${request.continuousScheduling}',
             '--settle-build-delay-ms=${request.settleBuildDelayMs}',
             '--trust-build-script-freshness=${request.trustBuildScriptFreshness}',
+            '--delete-conflicting-outputs=${request.deleteConflictingOutputs}',
             '--rust-daemon-dir=${p.join(request.repoRoot, 'native', 'daemon')}',
             if (request.mutationProfilePath != null)
               '--mutation-profile=${request.mutationProfilePath}',

@@ -170,6 +170,12 @@ class FastBuildRunnerCli {
         defaultsTo: true,
         help:
             'Fast path: skip incremental build-script freshness checks after bootstrap unless relevant build script inputs changed.',
+      )
+      ..addFlag(
+        'delete-conflicting-outputs',
+        negatable: false,
+        help:
+            'Compatibility flag for build_runner-style examples. The watch runtime already clears conflicting outputs during bootstrap.',
       );
 
     final parsed = parser.parse(args);
@@ -195,6 +201,8 @@ class FastBuildRunnerCli {
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
       trustBuildScriptFreshness: parsed['trust-build-script-freshness'] as bool,
+      deleteConflictingOutputs:
+          parsed['delete-conflicting-outputs'] as bool,
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );

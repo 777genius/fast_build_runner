@@ -43,6 +43,7 @@ class FastWatchAlphaSession {
     required bool continuousScheduling,
     required int settleBuildDelayMs,
     required bool trustBuildScriptFreshness,
+    required bool deleteConflictingOutputs,
     required String? rustDaemonDirectory,
     required String packageName,
     required String sourceFileRelativePath,
@@ -66,6 +67,7 @@ class FastWatchAlphaSession {
         generatedEntrypointPath: generatedEntrypointPath,
         runDirectory: runDirectory,
         mutationProfile: mutationProfile,
+        deleteConflictingOutputs: deleteConflictingOutputs,
         mutateBuildScriptBeforeIncremental: mutateBuildScriptBeforeIncremental,
       );
     }
@@ -94,6 +96,9 @@ class FastWatchAlphaSession {
       recentlyBootstrapped: true,
     );
 
+    // This runtime already starts by clearing conflicting outputs during
+    // bootstrap, so the compatibility flag is accepted but does not change the
+    // current behavior yet.
     await buildPlan.deleteFilesAndFolders();
     if (buildPlan.restartIsNeeded) {
       return FastWatchAlphaResult(
@@ -419,6 +424,7 @@ class FastWatchAlphaSession {
     required String generatedEntrypointPath,
     required String runDirectory,
     required ProjectMutationProfile? mutationProfile,
+    required bool deleteConflictingOutputs,
     required bool mutateBuildScriptBeforeIncremental,
   }) async {
     final buildPlan = await BuildPlan.load(
@@ -445,6 +451,9 @@ class FastWatchAlphaSession {
       recentlyBootstrapped: true,
     );
 
+    // This runtime already starts by clearing conflicting outputs during
+    // bootstrap, so the compatibility flag is accepted but does not change the
+    // current behavior yet.
     await buildPlan.deleteFilesAndFolders();
     if (buildPlan.restartIsNeeded) {
       return FastWatchAlphaResult(

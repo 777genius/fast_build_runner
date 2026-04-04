@@ -33,6 +33,8 @@ class FastSpikeChildRunner {
         int.tryParse(argMap['settle-build-delay-ms'] ?? '') ?? 0;
     final trustBuildScriptFreshness =
         argMap['trust-build-script-freshness'] == 'true';
+    final deleteConflictingOutputs =
+        argMap['delete-conflicting-outputs'] == 'true';
     final rustDaemonDirectory = argMap['rust-daemon-dir'];
     final mutationProfilePath = argMap['mutation-profile'];
     if (projectDirectory == null ||
@@ -81,6 +83,7 @@ class FastSpikeChildRunner {
                 continuousScheduling: continuousScheduling,
                 settleBuildDelayMs: settleBuildDelayMs,
                 trustBuildScriptFreshness: trustBuildScriptFreshness,
+                deleteConflictingOutputs: deleteConflictingOutputs,
                 rustDaemonDirectory: rustDaemonDirectory,
                 packageName: resolvedPackageName,
                 sourceFileRelativePath: resolvedSourceFile,
