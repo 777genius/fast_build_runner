@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.3
+
+- Stopped patching `fast_build_runner_internal` into target app dependencies during spike/watch runs.
+- Switched the child runtime import to a file-based internal package path so real Flutter apps can run without `meta`/`flutter_test` solver conflicts.
+
 ## 0.1.2
 
 - Made the bootstrap and watch runners work without a local `research/dart-build` checkout by falling back to hosted package constraints.

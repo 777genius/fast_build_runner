@@ -1,5 +1,6 @@
 class FastWatchAlphaRequest {
   final String repoRoot;
+  final String internalPackageRootPath;
   final String fixtureTemplatePath;
   final String workDirectoryPath;
   final bool keepRunDirectory;
@@ -17,6 +18,7 @@ class FastWatchAlphaRequest {
 
   const FastWatchAlphaRequest({
     required this.repoRoot,
+    required this.internalPackageRootPath,
     required this.fixtureTemplatePath,
     required this.workDirectoryPath,
     required this.keepRunDirectory,

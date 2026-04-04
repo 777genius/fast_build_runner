@@ -84,8 +84,12 @@ class FastBuildRunnerCli {
 
     final parsed = parser.parse(args);
     final repoRoot = await _resolveRepoRoot();
+    final internalPackageRoot =
+        _resolvePackageRootFromPackageConfig('fast_build_runner_internal') ??
+        Directory('${repoRoot.path}/packages/fast_build_runner_internal');
     final request = FastBootstrapSpikeRequest(
       repoRoot: repoRoot.path,
+      internalPackageRootPath: internalPackageRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
         repoRoot,
         parsed['fixture'] as String,
@@ -180,8 +184,12 @@ class FastBuildRunnerCli {
 
     final parsed = parser.parse(args);
     final repoRoot = await _resolveRepoRoot();
+    final internalPackageRoot =
+        _resolvePackageRootFromPackageConfig('fast_build_runner_internal') ??
+        Directory('${repoRoot.path}/packages/fast_build_runner_internal');
     final request = FastWatchAlphaRequest(
       repoRoot: repoRoot.path,
+      internalPackageRootPath: internalPackageRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
         repoRoot,
         parsed['fixture'] as String,
@@ -288,8 +296,12 @@ class FastBuildRunnerCli {
 
     final parsed = parser.parse(args);
     final repoRoot = await _resolveRepoRoot();
+    final internalPackageRoot =
+        _resolvePackageRootFromPackageConfig('fast_build_runner_internal') ??
+        Directory('${repoRoot.path}/packages/fast_build_runner_internal');
     final request = FastWatchBenchmarkRequest(
       repoRoot: repoRoot.path,
+      internalPackageRootPath: internalPackageRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
         repoRoot,
         parsed['fixture'] as String,
@@ -362,6 +374,10 @@ class FastBuildRunnerCli {
   }
 
   Directory? _resolveRepoRootFromPackageConfig() {
+    return _resolvePackageRootFromPackageConfig('fast_build_runner');
+  }
+
+  Directory? _resolvePackageRootFromPackageConfig(String packageName) {
     final scriptDirectory = File.fromUri(Platform.script).parent.absolute;
     var current = scriptDirectory;
 
@@ -370,7 +386,10 @@ class FastBuildRunnerCli {
         '${current.path}/.dart_tool/package_config.json',
       );
       if (packageConfigFile.existsSync()) {
-        final packageRoot = _readPackageRootFromPackageConfig(packageConfigFile);
+        final packageRoot = _readPackageRootFromPackageConfig(
+          packageConfigFile,
+          packageName,
+        );
         if (packageRoot != null) {
           return packageRoot;
         }
@@ -384,7 +403,10 @@ class FastBuildRunnerCli {
     }
   }
 
-  Directory? _readPackageRootFromPackageConfig(File packageConfigFile) {
+  Directory? _readPackageRootFromPackageConfig(
+    File packageConfigFile,
+    String packageName,
+  ) {
     final decoded = jsonDecode(packageConfigFile.readAsStringSync());
     if (decoded is! Map<String, Object?>) {
       return null;
@@ -399,7 +421,7 @@ class FastBuildRunnerCli {
       if (package is! Map) {
         continue;
       }
-      if (package['name'] != 'fast_build_runner') {
+      if (package['name'] != packageName) {
         continue;
       }
 

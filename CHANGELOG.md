@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Fixed real-project `spike-watch` runs by isolating the internal runtime from the target app dependency graph.
+- Verified the watch path on a large real Flutter app fixture using the published CLI flow plus `--fixture` and `--mutation-profile`.
+
 ## 0.1.3
 
 - Fixed global `spike-watch` activation so the installed executable resolves its real package root outside the repository checkout.

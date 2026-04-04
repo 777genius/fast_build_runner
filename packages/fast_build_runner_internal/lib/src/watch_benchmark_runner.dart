@@ -53,6 +53,7 @@ class FastWatchBenchmarkRunner {
       final result = await FastWatchAlphaRunner().run(
         FastWatchAlphaRequest(
           repoRoot: request.repoRoot,
+          internalPackageRootPath: request.internalPackageRootPath,
           fixtureTemplatePath: request.fixtureTemplatePath,
           workDirectoryPath: p.join(workDirectoryPath, 'run-${i + 1}'),
           keepRunDirectory: request.keepRunDirectory,
