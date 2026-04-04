@@ -1,9 +1,0 @@
-# Keep the internal package publishable even though the workspace root
-# excludes the whole packages/ directory from the root package archive.
-*
-!CHANGELOG.md
-!LICENSE
-!README.md
-!lib/**
-!pubspec.lock
-!pubspec.yaml
