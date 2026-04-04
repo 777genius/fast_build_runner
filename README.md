@@ -10,7 +10,7 @@ generated outputs aligned with upstream.
 Current best public signal:
 
 - up to **`1.44x` faster total watch time**
-- up to **`6.65x` faster incremental rebuilds**
+- up to **`6.66x` faster incremental rebuilds**
 - generated Dart outputs matching upstream in the Dart mode
 
 ## Table Of Contents
@@ -33,7 +33,7 @@ Current best public signal:
 
 ## Current Headline
 
-- ✅ Up to **`6.65x` faster incremental rebuilds** on a large real Flutter app
+- ✅ Up to **`6.66x` faster incremental rebuilds** on a large real Flutter app
 - ✅ Up to **`1.44x` faster total watch time** on the same app
 - ✅ Custom bootstrap path with real upstream `BuilderFactories`
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
@@ -113,7 +113,7 @@ profiles.
 | --- | ---: | ---: | ---: |
 | DTO mutation | 4.41s | 0.97s (`4.54x`) | 0.93s (`4.76x`) |
 | Freezed mutation | 8.75s | 5.02s (`1.74x`) | 4.99s (`1.75x`) |
-| Injection mutation | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.65x`) |
+| Injection mutation | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.66x`) |
 
 ### Current Interpretation
 
