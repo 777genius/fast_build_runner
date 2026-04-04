@@ -17,17 +17,29 @@ Current best public signal:
 
 ## Start Fast
 
+Install the package:
+
+```bash
+dart pub global activate fast_build_runner
+```
+
 Use the upstream path for one-shot builds:
 
 ```bash
-dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart build \
-  --delete-conflicting-outputs
+fast_build_runner build --delete-conflicting-outputs
 ```
 
 Use the fast runtime for watch / incremental experiments:
 
 ```bash
-dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart spike-watch
+fast_build_runner spike-watch
+```
+
+If you want to run directly from the local source checkout instead:
+
+```bash
+dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart build \
+  --delete-conflicting-outputs
 ```
 
 ## Table Of Contents

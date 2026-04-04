@@ -1,0 +1,11 @@
+dependency_overrides:
+  fast_build_runner_internal:
+    path: packages/fast_build_runner_internal
+  build:
+    path: research/dart-build/build
+  build_config:
+    path: research/dart-build/build_config
+  build_daemon:
+    path: research/dart-build/build_daemon
+  build_runner:
+    path: research/dart-build/build_runner
