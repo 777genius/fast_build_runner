@@ -1,6 +1,6 @@
 name: fast_build_runner_internal
 description: Internal runtime and hot-path implementation for fast_build_runner.
-version: 0.1.1
+version: 0.1.2
 repository: https://github.com/777genius/fast_build_runner
 homepage: https://github.com/777genius/fast_build_runner
 environment:

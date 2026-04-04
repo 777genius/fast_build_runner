@@ -1,5 +1,7 @@
 # fast_build_runner
 
+[![pub package](https://img.shields.io/pub/v/fast_build_runner.svg)](https://pub.dev/packages/fast_build_runner)
+
 Faster incremental rebuilds for Dart/Flutter projects built on top of
 [`build_runner`](https://pub.dev/packages/build_runner).
 
@@ -30,17 +32,16 @@ Use the upstream path for one-shot builds:
 fast_build_runner build --delete-conflicting-outputs
 ```
 
-Use the fast runtime for watch / incremental experiments:
+Use the fast runtime for watch / incremental rebuilds:
 
 ```bash
 fast_build_runner spike-watch --delete-conflicting-outputs
 ```
 
-If you want to run directly from the local source checkout instead:
+Optional experimental Rust source engine:
 
 ```bash
-dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart build \
-  --delete-conflicting-outputs
+fast_build_runner spike-watch --source-engine=rust --delete-conflicting-outputs
 ```
 
 ## Table Of Contents

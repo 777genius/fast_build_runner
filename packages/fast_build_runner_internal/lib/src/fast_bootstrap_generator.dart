@@ -11,15 +11,13 @@ class FastBootstrapGenerator {
   Future<void> generate({
     required String projectDirectory,
     required String outputPath,
-    required String internalLibraryPath,
+    required String internalLibraryImport,
     required String upstreamCommit,
   }) async {
     final builderFactoriesExpressions = await _withWorkingDirectory(
       projectDirectory,
       () => loadBuilderFactories(workspace: false),
     );
-    final internalImport = Uri.file(internalLibraryPath).toString();
-
     final library = Library(
       (builder) => builder.body.addAll([
         declareFinal('_builderFactories')
@@ -37,7 +35,7 @@ class FastBootstrapGenerator {
               ),
             )
             .statement,
-        _main(internalImport),
+        _main(internalLibraryImport),
       ]),
     );
 

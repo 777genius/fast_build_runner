@@ -83,7 +83,7 @@ class FastBuildRunnerCli {
       );
 
     final parsed = parser.parse(args);
-    final repoRoot = _resolveRepoRoot();
+    final repoRoot = await _resolveRepoRoot();
     final request = FastBootstrapSpikeRequest(
       repoRoot: repoRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
@@ -179,7 +179,7 @@ class FastBuildRunnerCli {
       );
 
     final parsed = parser.parse(args);
-    final repoRoot = _resolveRepoRoot();
+    final repoRoot = await _resolveRepoRoot();
     final request = FastWatchAlphaRequest(
       repoRoot: repoRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
@@ -287,7 +287,7 @@ class FastBuildRunnerCli {
       );
 
     final parsed = parser.parse(args);
-    final repoRoot = _resolveRepoRoot();
+    final repoRoot = await _resolveRepoRoot();
     final request = FastWatchBenchmarkRequest(
       repoRoot: repoRoot.path,
       fixtureTemplatePath: _resolveFromRoot(
@@ -329,9 +329,46 @@ class FastBuildRunnerCli {
     return result.exitCode;
   }
 
-  Directory _resolveRepoRoot() {
-    final scriptFile = File.fromUri(Platform.script);
-    return scriptFile.parent.parent;
+  Future<Directory> _resolveRepoRoot() async {
+    final seen = <String>{};
+    final searchRoots = <Directory>[
+      File.fromUri(Platform.script).parent,
+      File.fromUri(Platform.script).parent.parent,
+      Directory.current,
+    ];
+
+    for (final root in searchRoots) {
+      var current = root.absolute;
+      while (seen.add(current.path)) {
+        if (_looksLikeFastBuildRunnerRoot(current)) {
+          return current;
+        }
+        final parent = current.parent;
+        if (parent.path == current.path) {
+          break;
+        }
+        current = parent;
+      }
+    }
+
+    throw StateError(
+      'Unable to locate the fast_build_runner package root from ${Platform.script}.',
+    );
+  }
+
+  bool _looksLikeFastBuildRunnerRoot(Directory directory) {
+    final pubspec = File('${directory.path}/pubspec.yaml');
+    if (!pubspec.existsSync()) {
+      return false;
+    }
+
+    final pubspecContents = pubspec.readAsStringSync();
+    if (!pubspecContents.contains(RegExp(r'^name:\s*fast_build_runner\s*$',
+        multiLine: true))) {
+      return false;
+    }
+
+    return File('${directory.path}/bin/fast_build_runner.dart').existsSync();
   }
 
   String _resolveFromRoot(Directory root, String relativeOrAbsolute) {

@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.2
+
+- Made `spike-watch` self-contained for installed packages so it can run after activation instead of requiring a local source checkout.
+- Added a pub.dev badge and updated the README quick start to use the installed `spike-watch` command directly.
+
 ## 0.1.1
 
 - Added `--delete-conflicting-outputs` as a compatibility flag for `spike-watch`.

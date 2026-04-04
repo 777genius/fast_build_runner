@@ -21,8 +21,9 @@ class FastBootstrapSpikeRunner {
     FastBootstrapSpikeRequest request,
   ) async {
     final upstreamDir = p.join(request.repoRoot, 'research', 'dart-build');
-    final actualCommit = await _readGitCommit(upstreamDir);
-    if (actualCommit != pinnedBuildRunnerCommit) {
+    final actualCommit = await _resolveUpstreamMarker(upstreamDir);
+    if (actualCommit != hostedBuildRunnerMarker &&
+        actualCommit != pinnedBuildRunnerCommit) {
       return FastBootstrapSpikeResult(
         status: 'failure',
         upstreamCommit: actualCommit,
@@ -69,14 +70,7 @@ class FastBootstrapSpikeRunner {
       await FastBootstrapGenerator().generate(
         projectDirectory: runDirectory.path,
         outputPath: entrypointPath,
-        internalLibraryPath: p.join(
-          request.repoRoot,
-          'packages',
-          'fast_build_runner_internal',
-          'lib',
-          'src',
-          'fast_spike_child_runner.dart',
-        ),
+        internalLibraryImport: _internalRunnerImport(request.repoRoot),
         upstreamCommit: actualCommit,
       );
       final bootstrapper = FastBootstrapper(
@@ -180,6 +174,30 @@ class FastBootstrapSpikeRunner {
     return (result.stdout as String).trim();
   }
 
+  Future<String> _resolveUpstreamMarker(String upstreamDir) async {
+    if (!Directory(upstreamDir).existsSync()) {
+      return hostedBuildRunnerMarker;
+    }
+    return _readGitCommit(upstreamDir);
+  }
+
+  String _internalRunnerImport(String repoRoot) {
+    final localInternalLibrary = File(
+      p.join(
+        repoRoot,
+        'packages',
+        'fast_build_runner_internal',
+        'lib',
+        'src',
+        'fast_spike_child_runner.dart',
+      ),
+    );
+    if (localInternalLibrary.existsSync()) {
+      return localInternalLibrary.uri.toString();
+    }
+    return 'package:fast_build_runner_internal/src/fast_spike_child_runner.dart';
+  }
+
   Future<Directory> _createRunDirectory(String workDirectoryPath) async {
     final root = Directory(workDirectoryPath)..createSync(recursive: true);
     final runDir = Directory(
@@ -222,27 +240,24 @@ class FastBootstrapSpikeRunner {
       return;
     }
     final devDependenciesPatched = _ensureBuildRunnerDevDependency(original);
+    final internalDependencyPatched = _ensureInternalRuntimeDependency(
+      devDependenciesPatched,
+    );
+    final hasResearchCheckout = Directory(
+      p.join(repoRoot, 'research', 'dart-build'),
+    ).existsSync();
+    final hasLocalInternalPackage = Directory(
+      p.join(repoRoot, 'packages', 'fast_build_runner_internal'),
+    ).existsSync();
     final patched = StringBuffer()
-      ..writeln(devDependenciesPatched.trimRight())
+      ..writeln(internalDependencyPatched.trimRight())
       ..writeln()
       ..writeln('# fast_build_runner prepared fixture')
-      ..writeln('dependency_overrides:')
-      ..writeln('  build:')
-      ..writeln(
-        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build')}",
-      )
-      ..writeln('  build_config:')
-      ..writeln(
-        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_config')}",
-      )
-      ..writeln('  build_daemon:')
-      ..writeln(
-        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_daemon')}",
-      )
-      ..writeln('  build_runner:')
-      ..writeln(
-        "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_runner')}",
-      );
+      ..write(_dependencyOverridesYaml(
+        repoRoot: repoRoot,
+        hasResearchCheckout: hasResearchCheckout,
+        hasLocalInternalPackage: hasLocalInternalPackage,
+      ));
     pubspecFile.writeAsStringSync(patched.toString());
   }
 
@@ -257,5 +272,62 @@ class FastBootstrapSpikeRunner {
       );
     }
     return '${original.trimRight()}\n\ndev_dependencies:\n  build_runner: any\n';
+  }
+
+  String _ensureInternalRuntimeDependency(String original) {
+    if (RegExp(r'^  fast_build_runner_internal\s*:', multiLine: true).hasMatch(
+      original,
+    )) {
+      return original;
+    }
+    if (RegExp(r'^dev_dependencies:\n', multiLine: true).hasMatch(original)) {
+      return original.replaceFirst(
+        RegExp(r'^dev_dependencies:\n', multiLine: true),
+        'dev_dependencies:\n'
+        '  fast_build_runner_internal: $hostedFastBuildRunnerInternalConstraint\n',
+      );
+    }
+    return '${original.trimRight()}\n\n'
+        'dev_dependencies:\n'
+        '  fast_build_runner_internal: $hostedFastBuildRunnerInternalConstraint\n';
+  }
+
+  String _dependencyOverridesYaml({
+    required String repoRoot,
+    required bool hasResearchCheckout,
+    required bool hasLocalInternalPackage,
+  }) {
+    if (!hasResearchCheckout && !hasLocalInternalPackage) {
+      return '';
+    }
+
+    final buffer = StringBuffer()..writeln('dependency_overrides:');
+    if (hasLocalInternalPackage) {
+      buffer
+        ..writeln('  fast_build_runner_internal:')
+        ..writeln(
+          "    path: ${p.join(repoRoot, 'packages', 'fast_build_runner_internal')}",
+        );
+    }
+    if (hasResearchCheckout) {
+      buffer
+        ..writeln('  build:')
+        ..writeln(
+          "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build')}",
+        )
+        ..writeln('  build_config:')
+        ..writeln(
+          "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_config')}",
+        )
+        ..writeln('  build_daemon:')
+        ..writeln(
+          "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_daemon')}",
+        )
+        ..writeln('  build_runner:')
+        ..writeln(
+          "    path: ${p.join(repoRoot, 'research', 'dart-build', 'build_runner')}",
+        );
+    }
+    return buffer.toString();
   }
 }
