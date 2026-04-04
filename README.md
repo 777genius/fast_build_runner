@@ -59,6 +59,9 @@ Single watch-alpha run on the Dart source engine:
   --source-engine=dart
 ```
 
+`dart` is the current default source engine. If you do not pass
+`--source-engine`, `fast_build_runner` uses the Dart-backed path.
+
 Single watch-alpha run on the Rust source engine:
 
 ```bash
@@ -87,6 +90,29 @@ The benchmark command prints machine-readable JSON with:
 - elapsed milliseconds for `rust`
 - nested watch-alpha results for both runs
 - computed `rustSpeedupVsDart`
+
+## Correctness Note
+
+The current recommendation is to treat the Dart source engine as the safe
+default and the Rust source engine as an experimental accelerator.
+
+On the real `wah_flutter` project, the current regression check compares the
+generated Dart outputs from:
+
+- upstream `build_runner`
+- `fast_build_runner --source-engine=dart`
+
+The generated API/codegen outputs are expected to match byte-for-byte. The
+known acceptable differences are only in build metadata and tooling artifacts,
+for example:
+
+- `.flutter-plugins-dependencies`
+- `build/**/outputs.json`
+- `build/**/.filecache`
+- `build/**/gen_localizations.*`
+
+Those files describe build state, localization bookkeeping, or cache metadata.
+They are not part of the generated API/code output that users commit and review.
 
 ## Current Architecture
 
