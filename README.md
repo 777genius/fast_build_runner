@@ -26,22 +26,16 @@ Install the package:
 dart pub global activate fast_build_runner
 ```
 
-Use the upstream path for one-shot builds:
-
-```bash
-fast_build_runner build --delete-conflicting-outputs
-```
-
 Use the fast runtime for watch / incremental rebuilds:
 
 ```bash
-fast_build_runner spike-watch --delete-conflicting-outputs
+fast_build_runner spike-watch
 ```
 
 Optional experimental Rust source engine:
 
 ```bash
-fast_build_runner spike-watch --source-engine=rust --delete-conflicting-outputs
+fast_build_runner spike-watch --source-engine=rust
 ```
 
 ## Table Of Contents
