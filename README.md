@@ -15,8 +15,24 @@ Current best public signal:
 - one-shot `build` stays on the upstream `build_runner build` path
 - the current optimization target is the watch / incremental workflow
 
+## Start Fast
+
+Use the upstream path for one-shot builds:
+
+```bash
+dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart build \
+  --delete-conflicting-outputs
+```
+
+Use the fast runtime for watch / incremental experiments:
+
+```bash
+dart run /absolute/path/to/fast_build_runner/bin/fast_build_runner.dart spike-watch
+```
+
 ## Table Of Contents
 
+- [Start Fast](#start-fast)
 - [Current Headline](#current-headline)
 - [What This Project Is](#what-this-project-is)
 - [What This Project Is Not](#what-this-project-is-not)
