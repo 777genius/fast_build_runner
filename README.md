@@ -11,7 +11,7 @@ Current best public signal:
 
 - up to **`1.44x` faster total watch time**
 - up to **`6.66x` faster incremental rebuilds**
-- generated Dart outputs matching upstream in the Dart mode
+- generated Dart outputs verified to match upstream on a large real Flutter app
 
 ## Table Of Contents
 
@@ -37,7 +37,7 @@ Current best public signal:
 - ✅ Up to **`1.44x` faster total watch time** on the same app
 - ✅ Custom bootstrap path with real upstream `BuilderFactories`
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
-- ✅ Generated Dart outputs currently match upstream byte-for-byte in the Dart mode
+- ✅ Generated Dart outputs match upstream byte-for-byte on a large real Flutter app
 - ⚠️ Rust mode is still experimental
 
 ## What This Project Is
