@@ -13,12 +13,12 @@ import 'package:build_runner/src/bootstrap/build_process_state.dart';
 import 'package:build_runner/src/build/asset_graph/graph.dart';
 import 'package:build_runner/src/build/build_step_impl.dart';
 import 'package:build_runner/src/build/library_cycle_graph/phased_asset_deps.dart';
-import 'package:build_runner/src/build/resolver/analysis_driver.dart';
-import 'package:build_runner/src/build/resolver/analysis_driver_model.dart';
-import 'package:build_runner/src/build/resolver/build_resolver.dart';
 import 'package:build_runner/src/build/resolver/sdk_summary.dart';
 import 'package:build_runner/src/logging/build_log.dart';
 
+import 'fast_analysis_driver.dart';
+import 'fast_analysis_driver_model.dart';
+import 'fast_build_resolver.dart';
 import 'fast_build_step_resolver.dart';
 
 /// Narrow fork of upstream [ResolversImpl] that swaps in
@@ -29,21 +29,21 @@ class FastResolversImpl implements Resolvers {
   final _sharedResolveSyncCache = <String, Future<void>>{};
   final _sharedLibrariesCache = <String, Future<List<LibraryElement>>>{};
 
-  BuildResolver? _buildResolver;
-  AnalysisDriverModel _analysisDriverModel;
+  FastBuildResolver? _buildResolver;
+  FastAnalysisDriverModel _analysisDriverModel;
   PackageConfig? _packageConfig;
 
   factory FastResolversImpl.custom({
     PackageConfig? packageConfig,
-    AnalysisDriverModel? analysisDriverModel,
+    FastAnalysisDriverModel? analysisDriverModel,
   }) => FastResolversImpl(
     packageConfig: packageConfig,
-    analysisDriverModel: analysisDriverModel ?? AnalysisDriverModel(),
+    analysisDriverModel: analysisDriverModel ?? FastAnalysisDriverModel(),
   );
 
   FastResolversImpl({
     PackageConfig? packageConfig,
-    required AnalysisDriverModel analysisDriverModel,
+    required FastAnalysisDriverModel analysisDriverModel,
   }) : _packageConfig = packageConfig,
        _analysisDriverModel = analysisDriverModel;
 
@@ -55,7 +55,7 @@ class FastResolversImpl implements Resolvers {
       final loadedConfig = _packageConfig ??= await loadPackageConfigUri(
         Uri.parse(buildProcessState.packageConfigUri),
       );
-      final driver = analysisDriver(
+      final driver = fastAnalysisDriver(
         _analysisDriverModel,
         AnalysisOptionsImpl()
           ..contextFeatures = _featureSet(
@@ -65,7 +65,11 @@ class FastResolversImpl implements Resolvers {
         loadedConfig,
       );
 
-      _buildResolver = BuildResolver(driver, _driverPool, _analysisDriverModel);
+      _buildResolver = FastBuildResolver(
+        driver,
+        _driverPool,
+        _analysisDriverModel,
+      );
     });
 
     return FastBuildStepResolver(

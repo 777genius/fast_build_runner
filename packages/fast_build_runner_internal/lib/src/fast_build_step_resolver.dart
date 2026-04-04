@@ -7,8 +7,9 @@ import 'package:build/build.dart';
 import 'package:pool/pool.dart';
 
 import 'package:build_runner/src/build/build_step_impl.dart';
-import 'package:build_runner/src/build/resolver/build_resolver.dart';
 import 'package:build_runner/src/build/resolver/build_step_resolver.dart';
+
+import 'fast_build_resolver.dart';
 
 /// Narrow fork of upstream [BuildStepResolver].
 ///
@@ -23,7 +24,7 @@ import 'package:build_runner/src/build/resolver/build_step_resolver.dart';
 /// - `canRead` per asset
 /// - `isLibrary` / `libraryFor` / `compilationUnitFor` per asset
 class FastBuildStepResolver implements ReleasableResolver {
-  final BuildResolver _buildResolver;
+  final FastBuildResolver _buildResolver;
   final BuildStepImpl _buildStep;
   final Map<String, Future<void>> _sharedResolveSyncCache;
   final Map<String, Future<List<LibraryElement>>> _sharedLibrariesCache;

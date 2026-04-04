@@ -26,7 +26,6 @@ import 'package:build_runner/src/build/library_cycle_graph/library_cycle_graph_l
 import 'package:build_runner/src/build/library_cycle_graph/phased_asset_deps.dart';
 import 'package:build_runner/src/build/performance_tracker.dart';
 import 'package:build_runner/src/build/performance_tracking_resolvers.dart';
-import 'package:build_runner/src/build/resolver/analysis_driver_model.dart';
 import 'package:build_runner/src/build/resolver/resolvers_impl.dart';
 import 'package:build_runner/src/build/run_builder.dart';
 import 'package:build_runner/src/build/run_post_process_builder.dart';
@@ -45,10 +44,11 @@ import 'package:build_runner/src/io/reader_writer.dart';
 import 'package:build_runner/src/logging/build_log.dart';
 import 'package:build_runner/src/logging/timed_activities.dart';
 
+import 'fast_analysis_driver_model.dart';
 import 'fast_resolvers_impl.dart';
 
 final FastResolversImpl _defaultResolvers = FastResolversImpl(
-  analysisDriverModel: AnalysisDriverModel(),
+  analysisDriverModel: FastAnalysisDriverModel(),
 );
 
 class FastBuildInternalMetrics {
