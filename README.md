@@ -1,18 +1,35 @@
 # fast_build_runner
 
-`fast_build_runner` is an experimental companion to Dart's
+Faster incremental rebuilds for Dart/Flutter projects built on top of
 [`build_runner`](https://pub.dev/packages/build_runner).
 
-It does **not** try to replace the Dart builder ecosystem. Builders, analyzer,
-and generated code stay in Dart. The current work focuses on one narrow goal:
-make the **watch / incremental rebuild path** faster without breaking upstream
-semantics.
+`fast_build_runner` keeps builders, analyzer, and generated code in Dart. It
+currently focuses on speeding up the **watch / incremental** path while keeping
+generated outputs aligned with upstream.
+
+## Table Of Contents
+
+- [Current Headline](#current-headline)
+- [What This Project Is](#what-this-project-is)
+- [What This Project Is Not](#what-this-project-is-not)
+- [Why It Exists](#why-it-exists)
+- [Current Default](#current-default)
+- [Real-World Results: Large Flutter App](#real-world-results-large-flutter-app)
+- [Correctness Status](#correctness-status)
+- [Quick Start](#quick-start)
+- [CLI Commands](#cli-commands)
+- [Architecture](#architecture)
+- [Main Technical Direction](#main-technical-direction)
+- [Main Constraints](#main-constraints)
+- [Honest Public Positioning](#honest-public-positioning)
+- [Repository Health Commands](#repository-health-commands)
+- [Project Documents](#project-documents)
 
 ## Current Headline
 
 - ✅ Custom bootstrap path with real upstream `BuilderFactories`
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
-- ✅ Real-world benchmark wins on a large Flutter app (`wah_flutter`)
+- ✅ Real-world benchmark wins on a large private Flutter app
 - ✅ Generated Dart outputs currently match upstream byte-for-byte in the Dart mode
 - ⚠️ Rust mode is still experimental
 - ⚠️ This is not yet a drop-in replacement for every `build_runner` workflow
@@ -41,8 +58,7 @@ semantics.
 
 ## Why It Exists
 
-The practical bottleneck for many teams is not "can Dart generate code at all",
-but:
+The practical bottleneck for many teams is not code generation itself, but:
 
 - slow startup for repeated watch sessions
 - broad invalidation after a small edit
@@ -65,10 +81,10 @@ The current recommended default is:
 If you do not pass `--source-engine`, `fast_build_runner` already uses
 `dart`.
 
-## Real-World Results: `wah_flutter`
+## Real-World Results: Large Flutter App
 
-Benchmarks below were run on the real project
-`/Users/belief/dev/projects/WAH/wah_flutter` with three mutation profiles.
+Benchmarks below were run on a large private Flutter app with three mutation
+profiles.
 
 ### Total Wall-Clock vs Upstream `build_runner`
 
@@ -101,7 +117,8 @@ The most important current correctness claim is:
 - upstream `build_runner`
 - `fast_build_runner --source-engine=dart`
 
-produce the **same generated Dart outputs** on `wah_flutter` for the current
+produce the **same generated Dart outputs** on the large private Flutter app
+for the current
 regression scenario.
 
 There is now a regression test for that in:
@@ -160,12 +177,25 @@ Run commands from this repository root.
   --output=summary
 ```
 
-### Real project benchmark on `wah_flutter`
+### Real project benchmark on a local real app
 
 ```bash
 /Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
-  --fixture=/Users/belief/dev/projects/WAH/wah_flutter \
-  --mutation-profile=profiles/wah_flutter/analytics_service_injection.json \
+  --fixture="$FAST_BUILD_RUNNER_REAL_APP_PATH" \
+  --mutation-profile=profiles/real_app/analytics_service_injection.json \
+  --include-upstream \
+  --output=summary
+```
+
+Set `FAST_BUILD_RUNNER_REAL_APP_PATH` to your local Flutter app path first.
+
+Example:
+
+```bash
+export FAST_BUILD_RUNNER_REAL_APP_PATH=/absolute/path/to/your/flutter_app
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
+  --fixture="$FAST_BUILD_RUNNER_REAL_APP_PATH" \
+  --mutation-profile=profiles/real_app/analytics_service_injection.json \
   --include-upstream \
   --output=summary
 ```
@@ -241,7 +271,7 @@ In practice that means the next strong wins are expected from:
 Good:
 
 - "experimental companion for `build_runner`"
-- "real wins on `wah_flutter`"
+- "real wins on a large private Flutter app"
 - "generated Dart outputs match upstream in the Dart mode"
 - "Rust mode is optional and still experimental"
 

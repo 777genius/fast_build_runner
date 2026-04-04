@@ -1,0 +1,55 @@
+{
+  "name": "real_app update_profile_request_dto",
+  "sourceFileRelativePath": "lib/features/profile_user/data/models/update_profile_request_dto.dart",
+  "generatedFileRelativePath": "lib/features/profile_user/data/models/update_profile_request_dto.g.dart",
+  "steps": [
+    {
+      "name": "add nickname",
+      "generatedMarkers": [
+        "nickname"
+      ],
+      "replacements": [
+        {
+          "from": "  final String? surname; // lastName\n  final String phone; // обязательное поле для API\n",
+          "to": "  final String? surname; // lastName\n  final String? nickname; // public profile nickname\n  final String phone; // обязательное поле для API\n"
+        },
+        {
+          "from": "    this.surname,\n    required this.phone,\n",
+          "to": "    this.surname,\n    this.nickname,\n    required this.phone,\n"
+        }
+      ]
+    },
+    {
+      "name": "add telegram",
+      "generatedMarkers": [
+        "telegram"
+      ],
+      "replacements": [
+        {
+          "from": "  final String? nickname; // public profile nickname\n  final String phone; // обязательное поле для API\n",
+          "to": "  final String? nickname; // public profile nickname\n  final String? telegram; // telegram handle\n  final String phone; // обязательное поле для API\n"
+        },
+        {
+          "from": "    this.nickname,\n    required this.phone,\n",
+          "to": "    this.nickname,\n    this.telegram,\n    required this.phone,\n"
+        }
+      ]
+    },
+    {
+      "name": "add marketing consent",
+      "generatedMarkers": [
+        "marketingConsent"
+      ],
+      "replacements": [
+        {
+          "from": "  final String? telegram; // telegram handle\n  final String phone; // обязательное поле для API\n",
+          "to": "  final String? telegram; // telegram handle\n  final bool? marketingConsent; // CRM marketing opt-in\n  final String phone; // обязательное поле для API\n"
+        },
+        {
+          "from": "    this.telegram,\n    required this.phone,\n",
+          "to": "    this.telegram,\n    this.marketingConsent,\n    required this.phone,\n"
+        }
+      ]
+    }
+  ]
+}

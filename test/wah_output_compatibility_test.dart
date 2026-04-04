@@ -6,13 +6,21 @@ import 'package:test/test.dart';
 
 void main() {
   test(
-    'wah_flutter generated outputs match upstream for dart source engine',
+    'real app generated outputs match upstream for dart source engine',
     () async {
-      const wahFlutterPath = '/Users/belief/dev/projects/WAH/wah_flutter';
-      final fixtureDirectory = Directory(wahFlutterPath);
+      final realAppPath =
+          Platform.environment['FAST_BUILD_RUNNER_REAL_APP_PATH'];
+      if (realAppPath == null || realAppPath.isEmpty) {
+        stderr.writeln(
+          'Skipping real app compatibility test: FAST_BUILD_RUNNER_REAL_APP_PATH is not set.',
+        );
+        return;
+      }
+
+      final fixtureDirectory = Directory(realAppPath);
       if (!fixtureDirectory.existsSync()) {
         stderr.writeln(
-          'Skipping wah_flutter compatibility test: fixture missing.',
+          'Skipping real app compatibility test: fixture missing at $realAppPath.',
         );
         return;
       }
@@ -30,13 +38,13 @@ void main() {
         return FastWatchAlphaRunner().run(
           FastWatchAlphaRequest(
             repoRoot: repoRoot,
-            fixtureTemplatePath: wahFlutterPath,
+            fixtureTemplatePath: realAppPath,
             workDirectoryPath: p.join(baseWorkDir.path, engine),
             keepRunDirectory: true,
             mutationProfilePath: p.join(
               repoRoot,
               'profiles',
-              'wah_flutter',
+              'real_app',
               'analytics_service_injection.json',
             ),
             sourceEngine: engine,
@@ -69,7 +77,7 @@ void main() {
       expect(
         generatedFiles.length,
         greaterThan(50),
-        reason: 'Expected a meaningful generated surface for wah_flutter.',
+        reason: 'Expected a meaningful generated surface for the real app.',
       );
 
       final diffs = <String>[];
