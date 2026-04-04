@@ -7,6 +7,12 @@ Faster incremental rebuilds for Dart/Flutter projects built on top of
 currently focuses on speeding up the **watch / incremental** path while keeping
 generated outputs aligned with upstream.
 
+Current best public signal:
+
+- up to **`1.44x` faster total watch time**
+- up to **`6.65x` faster incremental rebuilds**
+- generated Dart outputs matching upstream in the Dart mode
+
 ## Table Of Contents
 
 - [Current Headline](#current-headline)
@@ -27,12 +33,13 @@ generated outputs aligned with upstream.
 
 ## Current Headline
 
+- ✅ Up to **`6.65x` faster incremental rebuilds** on a large real Flutter app
+- ✅ Up to **`1.44x` faster total watch time** on the same app
 - ✅ Custom bootstrap path with real upstream `BuilderFactories`
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
-- ✅ Real-world benchmark wins on a large private Flutter app
 - ✅ Generated Dart outputs currently match upstream byte-for-byte in the Dart mode
 - ⚠️ Rust mode is still experimental
-- ⚠️ This is not yet a drop-in replacement for every `build_runner` workflow
+- ⚠️ Coverage is strongest today for real watch / incremental workflows
 
 ## What This Project Is
 
@@ -81,6 +88,12 @@ The current recommended default is:
 If you do not pass `--source-engine`, `fast_build_runner` already uses
 `dart`.
 
+Why this is the default:
+
+- it already shows strong incremental wins
+- it matches upstream generated Dart outputs
+- it avoids the current Rust startup penalty on short sessions
+
 ## Real-World Results: Large Flutter App
 
 Benchmarks below were run on a large private Flutter app with three mutation
@@ -104,6 +117,7 @@ profiles.
 
 ### Current Interpretation
 
+- The **main value today is incremental rebuild speed**.
 - The **Dart** mode is the current safe public story.
 - The **Rust** mode already wins on some heavy cases, but still has bad total
   behavior on short DTO-style sessions because its startup cost does not always
@@ -123,7 +137,7 @@ regression scenario.
 
 There is now a regression test for that in:
 
-- [test/wah_output_compatibility_test.dart](./test/wah_output_compatibility_test.dart)
+- [test/real_app_output_compatibility_test.dart](./test/real_app_output_compatibility_test.dart)
 
 ### What is expected to match
 
@@ -294,9 +308,9 @@ Targeted tests:
 ```bash
 /Users/belief/dev/flutter/bin/dart test \
   test/bootstrap_spike_test.dart \
+  test/real_app_output_compatibility_test.dart \
   test/watch_alpha_test.dart \
   test/watch_benchmark_test.dart \
-  test/wah_output_compatibility_test.dart
 ```
 
 Rust daemon tests:

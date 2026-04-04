@@ -27,7 +27,7 @@ void main() {
 
       final repoRoot = Directory.current.path;
       final baseWorkDir = Directory(
-        p.join(repoRoot, '.dart_tool', 'test_wah_output_compatibility'),
+        p.join(repoRoot, '.dart_tool', 'test_real_app_output_compatibility'),
       );
       if (baseWorkDir.existsSync()) {
         await baseWorkDir.delete(recursive: true);
