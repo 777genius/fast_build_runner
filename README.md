@@ -12,7 +12,8 @@ Current best public signal:
 - up to **`1.44x` faster total watch time**
 - up to **`6.66x` faster incremental rebuilds**
 - generated Dart outputs verified to match upstream on a large real Flutter app
-- one-shot `build` can stay on the upstream `build_runner build` path
+- one-shot `build` stays on the upstream `build_runner build` path
+- the current optimization target is the watch / incremental workflow
 
 ## Table Of Contents
 
