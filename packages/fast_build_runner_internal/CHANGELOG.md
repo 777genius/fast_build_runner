@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.4
+
+- Added the Dart-side live watch session used by the public `fast_build_runner watch` command.
+- Added generated-asset filtering and graceful build-script restart signaling for long-running watch sessions.
+
 ## 0.1.3
 
 - Stopped patching `fast_build_runner_internal` into target app dependencies during spike/watch runs.

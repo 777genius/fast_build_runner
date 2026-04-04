@@ -7,6 +7,7 @@ import 'package:build_runner/src/bootstrap/processes.dart';
 import 'package:build_runner/src/internal.dart';
 
 import 'bootstrap_spike_result.dart';
+import 'fast_project_watch_session.dart';
 import 'fast_spike_session.dart';
 import 'fast_watch_alpha_session.dart';
 import 'upstream_pin.dart';
@@ -14,10 +15,51 @@ import 'watch_alpha_result.dart';
 
 class FastSpikeChildRunner {
   Future<void> run(List<String> args, BuilderFactories builderFactories) async {
-    final message = await ChildProcess.receive();
-    buildProcessState.deserializeAndSet(message);
     final argMap = _parseArgs(args);
     final mode = argMap['mode'] ?? 'bootstrap-spike';
+    if (mode == 'live-watch') {
+      final buildProcessStateBase64 = argMap['build-process-state-base64'];
+      if (buildProcessStateBase64 == null || buildProcessStateBase64.isEmpty) {
+        stderr.writeln(
+          'fast_build_runner: missing build-process-state-base64 for live watch mode.',
+        );
+        exit(64);
+      }
+      buildProcessState.deserializeAndSet(
+        utf8.decode(base64.decode(buildProcessStateBase64)),
+      );
+      final projectDirectory = argMap['project-dir'];
+      final packageName = argMap['package-name'];
+      final entrypointScript = argMap['entrypoint-script'];
+      if (projectDirectory == null ||
+          packageName == null ||
+          entrypointScript == null) {
+        stderr.writeln(
+          'fast_build_runner: missing required live watch child runner arguments.',
+        );
+        exit(64);
+      }
+      Directory.current = projectDirectory;
+      final exitCode =
+          await FastProjectWatchSession(
+            builderFactories: builderFactories,
+            upstreamCommit: pinnedBuildRunnerCommit,
+          ).run(
+            packageName: packageName,
+            generatedEntrypointPath: entrypointScript,
+            runDirectory: projectDirectory,
+            trustBuildScriptFreshness:
+                argMap['trust-build-script-freshness'] == 'true',
+            deleteConflictingOutputs:
+                argMap['delete-conflicting-outputs'] == 'true',
+            settleBuildDelayMs:
+                int.tryParse(argMap['settle-build-delay-ms'] ?? '') ?? 150,
+          );
+      exit(exitCode);
+    }
+
+    final message = await ChildProcess.receive();
+    buildProcessState.deserializeAndSet(message);
     final projectDirectory = argMap['project-dir'];
     final sourceFile = argMap['source-file'];
     final generatedFile = argMap['generated-file'];

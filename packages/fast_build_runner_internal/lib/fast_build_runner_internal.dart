@@ -21,3 +21,5 @@ export 'src/fast_watch_scheduler.dart';
 export 'src/watch_update_merger.dart';
 export 'src/rust_daemon_client.dart';
 export 'src/project_mutation_profile.dart';
+export 'src/project_watch_request.dart';
+export 'src/project_watch_runner.dart';

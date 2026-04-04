@@ -16,6 +16,8 @@ class FastBuildRunnerCli {
     switch (command) {
       case 'build':
         return _runUpstreamBuild(rest);
+      case 'watch':
+        return _runWatch(rest);
       case 'spike-bootstrap':
         return _runSpikeBootstrap(rest);
       case 'spike-watch':
@@ -35,12 +37,7 @@ class FastBuildRunnerCli {
   }
 
   Future<int> _runUpstreamBuild(List<String> args) async {
-    final processArgs = <String>[
-      'run',
-      'build_runner',
-      'build',
-      ...args,
-    ];
+    final processArgs = <String>['run', 'build_runner', 'build', ...args];
 
     try {
       final process = await Process.start(
@@ -105,6 +102,55 @@ class FastBuildRunnerCli {
     final result = await FastBootstrapSpikeRunner().run(request);
     stdout.writeln(const JsonEncoder.withIndent('  ').convert(result.toJson()));
     return result.exitCode;
+  }
+
+  Future<int> _runWatch(List<String> args) async {
+    final parser = ArgParser()
+      ..addOption(
+        'project-dir',
+        defaultsTo: '.',
+        help: 'Project directory to watch. Defaults to the current directory.',
+      )
+      ..addOption(
+        'settle-build-delay-ms',
+        defaultsTo: '150',
+        help:
+            'Post-build settle window for coalescing another filesystem batch before the next rebuild.',
+      )
+      ..addFlag(
+        'trust-build-script-freshness',
+        defaultsTo: true,
+        help:
+            'Fast path: skip incremental build-script freshness checks unless relevant build inputs changed.',
+      )
+      ..addFlag(
+        'delete-conflicting-outputs',
+        negatable: false,
+        help:
+            'Compatibility flag for build_runner-style usage. The watch runtime clears conflicting outputs during bootstrap.',
+      );
+
+    final parsed = parser.parse(args);
+    final repoRoot = await _resolveRepoRoot();
+    final internalPackageRoot =
+        _resolvePackageRootFromPackageConfig('fast_build_runner_internal') ??
+        Directory('${repoRoot.path}/packages/fast_build_runner_internal');
+    return FastProjectWatchRunner().run(
+      FastProjectWatchRequest(
+        repoRoot: repoRoot.path,
+        internalPackageRootPath: internalPackageRoot.path,
+        projectDirectoryPath: _resolveFromRoot(
+          Directory.current.absolute,
+          parsed['project-dir'] as String,
+        ),
+        deleteConflictingOutputs: parsed['delete-conflicting-outputs'] as bool,
+        settleBuildDelayMs: int.parse(
+          parsed['settle-build-delay-ms'] as String,
+        ),
+        trustBuildScriptFreshness:
+            parsed['trust-build-script-freshness'] as bool,
+      ),
+    );
   }
 
   Future<int> _runSpikeWatch(List<String> args) async {
@@ -209,8 +255,7 @@ class FastBuildRunnerCli {
       extraFixtureModels: int.parse(parsed['extra-fixture-models'] as String),
       settleBuildDelayMs: int.parse(parsed['settle-build-delay-ms'] as String),
       trustBuildScriptFreshness: parsed['trust-build-script-freshness'] as bool,
-      deleteConflictingOutputs:
-          parsed['delete-conflicting-outputs'] as bool,
+      deleteConflictingOutputs: parsed['delete-conflicting-outputs'] as bool,
       mutateBuildScriptBeforeIncremental:
           parsed['mutate-build-script-before-incremental'] as bool,
     );
@@ -433,9 +478,7 @@ class FastBuildRunnerCli {
       final rootUri = Uri.parse(rootUriValue);
       final rootDirectory = rootUri.isScheme('file')
           ? Directory.fromUri(rootUri)
-          : Directory.fromUri(
-              packageConfigFile.parent.uri.resolveUri(rootUri),
-            );
+          : Directory.fromUri(packageConfigFile.parent.uri.resolveUri(rootUri));
       if (_looksLikeFastBuildRunnerRoot(rootDirectory)) {
         return rootDirectory;
       }
@@ -452,8 +495,9 @@ class FastBuildRunnerCli {
     }
 
     final pubspecContents = pubspec.readAsStringSync();
-    if (!pubspecContents.contains(RegExp(r'^name:\s*fast_build_runner\s*$',
-        multiLine: true))) {
+    if (!pubspecContents.contains(
+      RegExp(r'^name:\s*fast_build_runner\s*$', multiLine: true),
+    )) {
       return false;
     }
 
@@ -474,6 +518,9 @@ class FastBuildRunnerCli {
     stdout.writeln('Commands:');
     stdout.writeln(
       '  build             Proxy to upstream build_runner build for one-shot builds.',
+    );
+    stdout.writeln(
+      '  watch             Run a long-lived fast watch loop for the current project.',
     );
     stdout.writeln(
       '  spike-bootstrap   Run the bootstrap seam proof against the bundled fixture.',

@@ -79,6 +79,9 @@ class FastBuildSeries {
     ).collectChanges(_assetGraph);
   }
 
+  bool isGeneratedAsset(AssetId id) =>
+      _assetGraph.get(id)?.generatedNodeConfiguration != null;
+
   Future<FastBuildRunOutcome> run(
     Map<AssetId, ChangeType> updates, {
     required bool recentlyBootstrapped,

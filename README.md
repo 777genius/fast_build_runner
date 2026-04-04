@@ -29,13 +29,13 @@ dart pub global activate fast_build_runner
 Use the fast runtime for watch / incremental rebuilds:
 
 ```bash
-fast_build_runner spike-watch
+fast_build_runner watch
 ```
 
-Optional experimental Rust source engine:
+For one-shot builds, keep using the upstream build path:
 
 ```bash
-fast_build_runner spike-watch --source-engine=rust
+fast_build_runner build --delete-conflicting-outputs
 ```
 
 ## Table Of Contents
@@ -197,13 +197,13 @@ Run commands from this repository root.
 /Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-bootstrap
 ```
 
-### Single watch run on the default Dart engine
+### Long-lived watch loop on the default Dart engine
 
 ```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart watch
 ```
 
-### Single watch run on the Rust engine
+### Finite watch-alpha proof on the Rust engine
 
 ```bash
 /Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
@@ -256,10 +256,12 @@ export FAST_BUILD_RUNNER_REAL_APP_PATH=/absolute/path/to/your/flutter_app
 
 - `build`
   - proxies to upstream `build_runner build` for one-shot builds
+- `watch`
+  - runs a long-lived fast watch loop for the current project
 - `spike-bootstrap`
   - proves the bootstrap seam with a generated custom entrypoint
 - `spike-watch`
-  - runs one watch/incremental scenario with a chosen source engine
+  - runs one finite watch/incremental proof scenario with a chosen source engine
 - `benchmark-watch`
   - compares engines, optionally against upstream baseline
 

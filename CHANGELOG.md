@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.5
+
+- Added a real long-lived `watch` command for the current project instead of only finite `spike-watch` proof runs.
+- Made the watch command clean up temporary `pubspec_overrides.yaml` state on exit.
+- Updated the README quick start to point users at `fast_build_runner watch`.
+
 ## 0.1.4
 
 - Fixed real-project `spike-watch` runs by isolating the internal runtime from the target app dependency graph.
