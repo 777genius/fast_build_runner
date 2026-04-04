@@ -14,6 +14,8 @@ class FastBuildRunnerCli {
     final command = args.first;
     final rest = args.sublist(1);
     switch (command) {
+      case 'build':
+        return _runUpstreamBuild(rest);
       case 'spike-bootstrap':
         return _runSpikeBootstrap(rest);
       case 'spike-watch':
@@ -29,6 +31,30 @@ class FastBuildRunnerCli {
         stderr.writeln('Unknown command: $command');
         _printUsage();
         return 64;
+    }
+  }
+
+  Future<int> _runUpstreamBuild(List<String> args) async {
+    final processArgs = <String>[
+      'run',
+      'build_runner',
+      'build',
+      ...args,
+    ];
+
+    try {
+      final process = await Process.start(
+        Platform.resolvedExecutable,
+        processArgs,
+        workingDirectory: Directory.current.path,
+        mode: ProcessStartMode.inheritStdio,
+      );
+      return await process.exitCode;
+    } on ProcessException catch (error) {
+      stderr.writeln(
+        'Failed to launch upstream build_runner build: ${error.message}',
+      );
+      return 1;
     }
   }
 
@@ -312,6 +338,9 @@ class FastBuildRunnerCli {
     stdout.writeln('Usage: fast_build_runner <command>');
     stdout.writeln('');
     stdout.writeln('Commands:');
+    stdout.writeln(
+      '  build             Proxy to upstream build_runner build for one-shot builds.',
+    );
     stdout.writeln(
       '  spike-bootstrap   Run the bootstrap seam proof against the bundled fixture.',
     );

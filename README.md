@@ -12,6 +12,7 @@ Current best public signal:
 - up to **`1.44x` faster total watch time**
 - up to **`6.66x` faster incremental rebuilds**
 - generated Dart outputs verified to match upstream on a large real Flutter app
+- one-shot `build` can stay on the upstream `build_runner build` path
 
 ## Table Of Contents
 
@@ -81,8 +82,10 @@ The current strategy is deliberately narrow:
 
 The current recommended default is:
 
+- **`build` proxies to upstream `build_runner build`**
 - **Dart source engine by default**
 - **Rust source engine only as an opt-in experimental mode**
+- **fast runtime is currently focused on watch / incremental workflows**
 
 If you do not pass `--source-engine`, `fast_build_runner` already uses
 `dart`.
@@ -182,6 +185,17 @@ Run commands from this repository root.
   --source-engine=rust
 ```
 
+### One-shot build through the upstream path
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart build \
+  --delete-conflicting-outputs
+```
+
+This intentionally proxies to upstream `build_runner build`, so single builds
+keep upstream cold-start behavior while `fast_build_runner` stays focused on the
+watch / incremental path.
+
 ### Compare engines
 
 ```bash
@@ -215,6 +229,8 @@ export FAST_BUILD_RUNNER_REAL_APP_PATH=/absolute/path/to/your/flutter_app
 
 ## CLI Commands
 
+- `build`
+  - proxies to upstream `build_runner build` for one-shot builds
 - `spike-bootstrap`
   - proves the bootstrap seam with a generated custom entrypoint
 - `spike-watch`
