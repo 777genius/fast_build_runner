@@ -1,152 +1,257 @@
 # fast_build_runner
 
-`fast_build_runner` is an experimental companion for `build_runner`.
+`fast_build_runner` is an experimental companion to Dart's
+[`build_runner`](https://pub.dev/packages/build_runner).
 
-It keeps builders, analyzer, and code generation in Dart, but moves the hot
-incremental orchestration path toward a Rust-backed watch/update pipeline. The
-goal is not a deep fork of `dart-lang/build`, but a faster path for `watch`,
-`no-op`, and small incremental rebuilds.
+It does **not** try to replace the Dart builder ecosystem. Builders, analyzer,
+and generated code stay in Dart. The current work focuses on one narrow goal:
+make the **watch / incremental rebuild path** faster without breaking upstream
+semantics.
 
-## Current State
+## Current Headline
 
-What is already working in this repository:
+- ✅ Custom bootstrap path with real upstream `BuilderFactories`
+- ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
+- ✅ Real-world benchmark wins on a large Flutter app (`wah_flutter`)
+- ✅ Generated Dart outputs currently match upstream byte-for-byte in the Dart mode
+- ⚠️ Rust mode is still experimental
+- ⚠️ This is not yet a drop-in replacement for every `build_runner` workflow
 
-- custom bootstrap path with real upstream `BuilderFactories`
-- child-side execution path around `BuildPlan` and `BuildSeries`
-- watch-alpha flow on top of that runtime
-- Rust daemon with a JSON protocol and filesystem `watch_once`
-- Rust-backed watch source engine wired into the custom runtime
-- multi-cycle incremental watch runs
-- benchmark command that compares `dart` and `rust` source engines on the same fixture
+## What This Project Is
 
-What this is **not** yet:
+`fast_build_runner` currently experiments with three layers:
 
-- a drop-in replacement for `dart run build_runner watch`
-- a production-ready compatibility layer for every builder topology
-- a full invalidation engine replacement
-- a full workspace / post-process / lazy-phase solution
+1. **Custom bootstrap**
+   - Generates a custom entrypoint instead of handing everything to the stock
+     `ChildProcess.run(...)`.
+2. **Custom watch runtime**
+   - Reuses upstream planning/build internals while controlling the watch loop,
+     batching, and incremental scheduling.
+3. **Alternative source engines**
+   - `dart` source engine: current safe default
+   - `rust` source engine: optional experimental accelerator
+   - `upstream`: baseline for comparison
 
-## Why This Exists
+## What This Project Is Not
 
-`build_runner` can be slow for several different reasons, but the most
-practical place to attack first is the incremental path:
+- not a full rewrite of `build_runner`
+- not a full invalidation-engine replacement
+- not yet a production-ready replacement for every builder topology
+- not yet a solved story for workspaces / post-process / lazy phases
 
-- startup and bootstrap overhead
-- watcher batching and change ingestion
-- broad change invalidation
-- repeated rebuild scheduling on small edits
+## Why It Exists
 
-The current project direction is:
+The practical bottleneck for many teams is not "can Dart generate code at all",
+but:
 
-- keep `analyzer`, builders, and actual codegen in Dart
-- keep upstream `build_runner` semantics as close as possible
-- replace only the hot watch/update path where that gives leverage
+- slow startup for repeated watch sessions
+- broad invalidation after a small edit
+- repeated rebuild scheduling on tiny changes
+- too much work happening outside the actual tracked builder actions
 
-## What To Run
+The current strategy is deliberately narrow:
 
-All commands below run from this repository root.
+- keep the ecosystem-compatible parts in Dart
+- fork only the hottest internal paths when needed
+- measure everything on a real Flutter app instead of synthetic claims only
 
-Bootstrap seam proof:
+## Current Default
 
-```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-bootstrap
-```
+The current recommended default is:
 
-Single watch-alpha run on the Dart source engine:
+- **Dart source engine by default**
+- **Rust source engine only as an opt-in experimental mode**
 
-```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
-  --source-engine=dart
-```
+If you do not pass `--source-engine`, `fast_build_runner` already uses
+`dart`.
 
-`dart` is the current default source engine. If you do not pass
-`--source-engine`, `fast_build_runner` uses the Dart-backed path.
+## Real-World Results: `wah_flutter`
 
-Single watch-alpha run on the Rust source engine:
+Benchmarks below were run on the real project
+`/Users/belief/dev/projects/WAH/wah_flutter` with three mutation profiles.
 
-```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
-  --source-engine=rust
-```
+### Total Wall-Clock vs Upstream `build_runner`
 
-Multi-cycle watch-alpha run:
+| Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
+| --- | ---: | ---: | ---: |
+| DTO mutation | 49.74s | 43.52s (`1.14x`) | 63.45s (`0.78x`) |
+| Freezed mutation | 50.39s | 43.33s (`1.16x`) | 42.84s (`1.18x`) |
+| Injection mutation | 66.72s | 49.38s (`1.35x`) | 46.24s (`1.44x`) |
 
-```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
-  --source-engine=rust \
-  --incremental-cycles=2
-```
+### Incremental Rebuild vs Upstream `build_runner`
 
-Benchmark summary comparing the two source engines:
+| Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
+| --- | ---: | ---: | ---: |
+| DTO mutation | 4.41s | 0.97s (`4.54x`) | 0.93s (`4.76x`) |
+| Freezed mutation | 8.75s | 5.02s (`1.74x`) | 4.99s (`1.75x`) |
+| Injection mutation | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.65x`) |
 
-```bash
-/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
-  --incremental-cycles=1
-```
+### Current Interpretation
 
-The benchmark command prints machine-readable JSON with:
+- The **Dart** mode is the current safe public story.
+- The **Rust** mode already wins on some heavy cases, but still has bad total
+  behavior on short DTO-style sessions because its startup cost does not always
+  amortize.
+- The strongest result so far is the **DI / injection-heavy** case.
 
-- elapsed milliseconds for `dart`
-- elapsed milliseconds for `rust`
-- nested watch-alpha results for both runs
-- computed `rustSpeedupVsDart`
+## Correctness Status
 
-## Correctness Note
-
-The current recommendation is to treat the Dart source engine as the safe
-default and the Rust source engine as an experimental accelerator.
-
-On the real `wah_flutter` project, the current regression check compares the
-generated Dart outputs from:
+The most important current correctness claim is:
 
 - upstream `build_runner`
 - `fast_build_runner --source-engine=dart`
 
-The generated API/codegen outputs are expected to match byte-for-byte. The
-known acceptable differences are only in build metadata and tooling artifacts,
-for example:
+produce the **same generated Dart outputs** on `wah_flutter` for the current
+regression scenario.
+
+There is now a regression test for that in:
+
+- [test/wah_output_compatibility_test.dart](./test/wah_output_compatibility_test.dart)
+
+### What is expected to match
+
+Generated code outputs such as:
+
+- `*.g.dart`
+- `*.freezed.dart`
+- `*.config.dart`
+- `*.gr.dart`
+- `*.mocks.dart`
+
+### What may differ without being a correctness bug
+
+Build metadata and cache/tooling artifacts, for example:
 
 - `.flutter-plugins-dependencies`
 - `build/**/outputs.json`
 - `build/**/.filecache`
 - `build/**/gen_localizations.*`
 
-Those files describe build state, localization bookkeeping, or cache metadata.
-They are not part of the generated API/code output that users commit and review.
+Those files are not the generated API/code outputs that users review and commit.
 
-## Current Architecture
+## Quick Start
 
-High-level shape:
+Run commands from this repository root.
+
+### Bootstrap seam proof
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-bootstrap
+```
+
+### Single watch run on the default Dart engine
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch
+```
+
+### Single watch run on the Rust engine
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart spike-watch \
+  --source-engine=rust
+```
+
+### Compare engines
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
+  --include-upstream \
+  --output=summary
+```
+
+### Real project benchmark on `wah_flutter`
+
+```bash
+/Users/belief/dev/flutter/bin/dart run bin/fast_build_runner.dart benchmark-watch \
+  --fixture=/Users/belief/dev/projects/WAH/wah_flutter \
+  --mutation-profile=profiles/wah_flutter/analytics_service_injection.json \
+  --include-upstream \
+  --output=summary
+```
+
+## CLI Commands
+
+- `spike-bootstrap`
+  - proves the bootstrap seam with a generated custom entrypoint
+- `spike-watch`
+  - runs one watch/incremental scenario with a chosen source engine
+- `benchmark-watch`
+  - compares engines, optionally against upstream baseline
+
+## Architecture
 
 ```text
-fixture / target project
-        |
-        v
+target project
+    |
+    v
 fast_build_runner CLI
-        |
-        v
+    |
+    v
 custom generated entrypoint
-        |
-        v
+    |
+    v
 child-side runtime
   - BuildPlan
   - BuildSeries
   - watch scheduler
-        |
-        +--> Dart watcher source engine
-        |
-        +--> Rust daemon source engine
+  - custom perf probes
+    |
+    +--> Dart source engine
+    |
+    +--> Rust source engine
 ```
 
-The currently pinned upstream research commit is:
+### Upstream dependency pin
+
+The current research pin is:
 
 - `2b1450e313a188a1027f04940e0e4e82372d6530`
 
-Upstream research source of truth lives in:
+The local upstream source-of-truth clone lives in:
 
 - `research/dart-build/`
 
-## Useful Commands
+## Main Technical Direction
+
+The current most promising direction is **not** "rewrite everything in Rust".
+
+The strongest signal so far is:
+
+- keep builders and analyzer in Dart
+- use a narrow Dart-side fork for hot internal paths
+- use Rust only where it genuinely helps as an optional source/watch engine
+
+In practice that means the next strong wins are expected from:
+
+- analysis/resolver state retention between incremental builds
+- less repeated sync into the analyzer-facing filesystem
+- tighter watch/update ingestion
+
+## Main Constraints
+
+- analyzer-heavy builders are still bounded by upstream Dart-side costs
+- full build-script freshness parity is still narrower than stock upstream
+- Rust is currently a source-engine experiment, not a full graph daemon
+- some project profiles still show weak or negative Rust total wall-clock gain
+- workspace / post-process / lazy-phase coverage is not complete yet
+
+## Honest Public Positioning
+
+Good:
+
+- "experimental companion for `build_runner`"
+- "real wins on `wah_flutter`"
+- "generated Dart outputs match upstream in the Dart mode"
+- "Rust mode is optional and still experimental"
+
+Bad:
+
+- "universal `build_runner` replacement"
+- "Rust makes everything faster"
+- "all builder topologies are solved"
+
+## Repository Health Commands
 
 Analyze:
 
@@ -154,14 +259,14 @@ Analyze:
 /Users/belief/dev/flutter/bin/dart analyze
 ```
 
-Core regression tests:
+Targeted tests:
 
 ```bash
 /Users/belief/dev/flutter/bin/dart test \
   test/bootstrap_spike_test.dart \
   test/watch_alpha_test.dart \
-  test/rust_daemon_client_test.dart \
-  test/watch_benchmark_test.dart
+  test/watch_benchmark_test.dart \
+  test/wah_output_compatibility_test.dart
 ```
 
 Rust daemon tests:
@@ -169,18 +274,6 @@ Rust daemon tests:
 ```bash
 cd native/daemon && cargo test
 ```
-
-## Main Constraints
-
-The project still has important limits:
-
-- analyzer-heavy builders are still bounded by upstream Dart-side costs
-- full build-script freshness parity is still narrower than upstream
-- the Rust daemon is currently a source-engine component, not a full graph daemon
-- benchmark numbers are still dominated by upstream initial build cost on the tiny fixture
-
-That means the current benchmark is a **correctness and integration benchmark**,
-not yet a strong public performance claim.
 
 ## Project Documents
 
