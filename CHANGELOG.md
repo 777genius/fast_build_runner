@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.3
+
+- Fixed global `spike-watch` activation so the installed executable resolves its real package root outside the repository checkout.
+
 ## 0.1.2
 
 - Made `spike-watch` self-contained for installed packages so it can run after activation instead of requiring a local source checkout.

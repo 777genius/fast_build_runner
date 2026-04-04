@@ -330,6 +330,11 @@ class FastBuildRunnerCli {
   }
 
   Future<Directory> _resolveRepoRoot() async {
+    final configuredRoot = _resolveRepoRootFromPackageConfig();
+    if (configuredRoot != null) {
+      return configuredRoot;
+    }
+
     final seen = <String>{};
     final searchRoots = <Directory>[
       File.fromUri(Platform.script).parent,
@@ -354,6 +359,68 @@ class FastBuildRunnerCli {
     throw StateError(
       'Unable to locate the fast_build_runner package root from ${Platform.script}.',
     );
+  }
+
+  Directory? _resolveRepoRootFromPackageConfig() {
+    final scriptDirectory = File.fromUri(Platform.script).parent.absolute;
+    var current = scriptDirectory;
+
+    while (true) {
+      final packageConfigFile = File(
+        '${current.path}/.dart_tool/package_config.json',
+      );
+      if (packageConfigFile.existsSync()) {
+        final packageRoot = _readPackageRootFromPackageConfig(packageConfigFile);
+        if (packageRoot != null) {
+          return packageRoot;
+        }
+      }
+
+      final parent = current.parent;
+      if (parent.path == current.path) {
+        return null;
+      }
+      current = parent;
+    }
+  }
+
+  Directory? _readPackageRootFromPackageConfig(File packageConfigFile) {
+    final decoded = jsonDecode(packageConfigFile.readAsStringSync());
+    if (decoded is! Map<String, Object?>) {
+      return null;
+    }
+
+    final packages = decoded['packages'];
+    if (packages is! List) {
+      return null;
+    }
+
+    for (final package in packages) {
+      if (package is! Map) {
+        continue;
+      }
+      if (package['name'] != 'fast_build_runner') {
+        continue;
+      }
+
+      final rootUriValue = package['rootUri'];
+      if (rootUriValue is! String || rootUriValue.isEmpty) {
+        return null;
+      }
+
+      final rootUri = Uri.parse(rootUriValue);
+      final rootDirectory = rootUri.isScheme('file')
+          ? Directory.fromUri(rootUri)
+          : Directory.fromUri(
+              packageConfigFile.parent.uri.resolveUri(rootUri),
+            );
+      if (_looksLikeFastBuildRunnerRoot(rootDirectory)) {
+        return rootDirectory;
+      }
+      return rootDirectory;
+    }
+
+    return null;
   }
 
   bool _looksLikeFastBuildRunnerRoot(Directory directory) {
