@@ -20,17 +20,16 @@ Current best public signal:
 
 ## Start Fast
 
-Install the package:
+Fast test:
 
 ```bash
 dart pub global activate fast_build_runner
-```
-
-Use the fast runtime for watch / incremental rebuilds:
-
-```bash
 fast_build_runner watch
 ```
+
+Then start editing files for rebuilds.
+
+This expects a Dart or Flutter project that already uses `build_runner`.
 
 For one-shot builds, keep using the upstream build path:
 
