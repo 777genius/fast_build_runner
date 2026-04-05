@@ -45,7 +45,7 @@ fast_build_runner build --delete-conflicting-outputs
 - [What This Project Is Not](#what-this-project-is-not)
 - [Why It Exists](#why-it-exists)
 - [Current Default](#current-default)
-- [Real-World Results: Large Flutter App](#real-world-results-large-flutter-app)
+- [Real-World Results: Two Flutter Apps](#real-world-results-two-flutter-apps)
 - [Correctness Status](#correctness-status)
 - [Quick Start](#quick-start)
 - [CLI Commands](#cli-commands)
@@ -119,7 +119,7 @@ Why this is the default:
 - it matches upstream generated Dart outputs
 - it avoids the current Rust startup penalty on short sessions
 
-## Real-World Results: Large Flutter App
+## Real-World Results: Two Flutter Apps
 
 Benchmarks below were run on two real Flutter apps with controlled mutation
 profiles.
@@ -128,16 +128,18 @@ profiles.
 
 | Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
 | --- | ---: | ---: | ---: |
-| DTO mutation | 4.41s | 0.97s (`4.54x`) | 0.93s (`4.76x`) |
-| Freezed mutation | 8.75s | 5.02s (`1.74x`) | 4.99s (`1.75x`) |
-| Injection mutation | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.66x`) |
+| JSON serializable model change | 4.41s | 0.97s (`4.54x`) | 0.93s (`4.76x`) |
+| Freezed model change | 8.75s | 5.02s (`1.74x`) | 4.99s (`1.75x`) |
+| DI-heavy registration change | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.66x`) |
 
-### Incremental Rebuild vs Upstream `build_runner` (`padelapp`)
+### Incremental Rebuild vs Upstream `build_runner` (Second Real Flutter App)
 
 | Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
 | --- | ---: | ---: | ---: |
-| Auth DTO mutation | 11.94s | 7.01s (`1.70x`) | 7.07s (`1.69x`) |
-| Payment request freezed mutation | 9.93s | 5.40s (`1.84x`) | 5.24s (`1.90x`) |
+| JSON serializable request model change | 11.94s | 7.01s (`1.70x`) | 7.07s (`1.69x`) |
+| Freezed request model change | 9.93s | 5.40s (`1.84x`) | 5.24s (`1.90x`) |
+| Typed route change | 9.86s | 4.61s (`2.14x`) | 5.19s (`1.90x`) |
+| Retrofit API contract change | 11.05s | 5.00s (`2.21x`) | 6.14s (`1.80x`) |
 
 ### Current Interpretation
 

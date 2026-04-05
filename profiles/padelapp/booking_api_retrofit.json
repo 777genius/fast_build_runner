@@ -1,0 +1,23 @@
+{
+  "name": "second real app retrofit api",
+  "sourceFileRelativePath": "lib/src/feature/booking_confirm/data/booking_api.dart",
+  "generatedFileRelativePath": "lib/src/feature/booking_confirm/data/booking_api.g.dart",
+  "steps": [
+    {
+      "name": "add optional locale query",
+      "generatedMarkers": [
+        "locale"
+      ],
+      "replacements": [
+        {
+          "from": "  Future<BookingDetailsResponse> bookingDetails({required String id});\n",
+          "to": "  Future<BookingDetailsResponse> bookingDetails({required String id, String? locale});\n"
+        },
+        {
+          "from": "  Future<BookingDetailsResponse> bookingDetails({@Path('id') required String id});\n",
+          "to": "  Future<BookingDetailsResponse> bookingDetails({@Path('id') required String id, @Query('locale') String? locale});\n"
+        }
+      ]
+    }
+  ]
+}

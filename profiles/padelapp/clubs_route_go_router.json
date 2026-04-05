@@ -1,0 +1,19 @@
+{
+  "name": "second real app go_router route",
+  "sourceFileRelativePath": "lib/src/common/router/routes/clubs_unbranched_route.dart",
+  "generatedFileRelativePath": "lib/src/common/router/routes/clubs_unbranched_route.g.dart",
+  "steps": [
+    {
+      "name": "add optional source query param",
+      "generatedMarkers": [
+        "source"
+      ],
+      "replacements": [
+        {
+          "from": "class ClubsUnbranchedRoute extends GoRouteData with $ClubsUnbranchedRoute {\n  const ClubsUnbranchedRoute();\n\n  @override\n",
+          "to": "class ClubsUnbranchedRoute extends GoRouteData with $ClubsUnbranchedRoute {\n  const ClubsUnbranchedRoute({this.source});\n\n  final String? source;\n\n  @override\n"
+        }
+      ]
+    }
+  ]
+}
