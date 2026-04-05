@@ -155,7 +155,7 @@ packages:
       path: "packages/fast_build_runner_internal"
       relative: true
     source: path
-    version: "0.1.4"
+    version: "0.1.5"
   file:
     dependency: transitive
     description:
