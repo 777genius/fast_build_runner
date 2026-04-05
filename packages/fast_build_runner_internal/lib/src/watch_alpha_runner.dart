@@ -469,22 +469,26 @@ class $className {
   }) async {
     final pubspecFile = File(fixturePubspecPath);
     final original = pubspecFile.readAsStringSync();
-    if (original.contains('fast_build_runner prepared fixture')) {
+    final devDependenciesPatched = _ensureBuildRunnerDevDependency(original);
+    if (devDependenciesPatched != original) {
+      pubspecFile.writeAsStringSync(devDependenciesPatched);
+    }
+    final overridesFile = File(
+      p.join(p.dirname(fixturePubspecPath), 'pubspec_overrides.yaml'),
+    );
+    final overridesYaml = _dependencyOverridesYaml(
+      repoRoot: repoRoot,
+      hasResearchCheckout: Directory(
+        p.join(repoRoot, 'research', 'dart-build'),
+      ).existsSync(),
+    );
+    if (overridesYaml.isEmpty) {
+      if (overridesFile.existsSync()) {
+        overridesFile.deleteSync();
+      }
       return;
     }
-    final devDependenciesPatched = _ensureBuildRunnerDevDependency(original);
-    final hasResearchCheckout = Directory(
-      p.join(repoRoot, 'research', 'dart-build'),
-    ).existsSync();
-    final patched = StringBuffer()
-      ..writeln(devDependenciesPatched.trimRight())
-      ..writeln()
-      ..writeln('# fast_build_runner prepared fixture')
-      ..write(_dependencyOverridesYaml(
-        repoRoot: repoRoot,
-        hasResearchCheckout: hasResearchCheckout,
-      ));
-    pubspecFile.writeAsStringSync(patched.toString());
+    overridesFile.writeAsStringSync(overridesYaml);
   }
 
   String _ensureBuildRunnerDevDependency(String original) {

@@ -1,0 +1,23 @@
+{
+  "name": "padelapp auth_request_params dto",
+  "sourceFileRelativePath": "lib/src/feature/authentication/model/auth_request_params.dart",
+  "generatedFileRelativePath": "lib/src/feature/authentication/model/auth_request_params.g.dart",
+  "steps": [
+    {
+      "name": "add state",
+      "generatedMarkers": [
+        "state"
+      ],
+      "replacements": [
+        {
+          "from": "    required this.redirectUri,\n    required this.scope,\n    required this.responseType,\n  });\n",
+          "to": "    required this.redirectUri,\n    required this.scope,\n    this.state,\n    required this.responseType,\n  });\n"
+        },
+        {
+          "from": "  final String redirectUri;\n  final String scope;\n  final String responseType;\n",
+          "to": "  final String redirectUri;\n  final String scope;\n  final String? state;\n  final String responseType;\n"
+        }
+      ]
+    }
+  ]
+}

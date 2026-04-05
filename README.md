@@ -59,7 +59,6 @@ fast_build_runner build --delete-conflicting-outputs
 ## Current Headline
 
 - ✅ Up to **`6.66x` faster incremental rebuilds** on a large real Flutter app
-- ✅ Up to **`1.44x` faster total watch time** on the same app
 - ✅ Custom bootstrap path with real upstream `BuilderFactories`
 - ✅ Custom child runtime around upstream `BuildPlan` / `BuildSeries`
 - ✅ Generated Dart outputs match upstream byte-for-byte on a large real Flutter app
@@ -122,18 +121,10 @@ Why this is the default:
 
 ## Real-World Results: Large Flutter App
 
-Benchmarks below were run on a large private Flutter app with three mutation
+Benchmarks below were run on two real Flutter apps with controlled mutation
 profiles.
 
-### Total Wall-Clock vs Upstream `build_runner`
-
-| Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
-| --- | ---: | ---: | ---: |
-| DTO mutation | 49.74s | 43.52s (`1.14x`) | 63.45s (`0.78x`) |
-| Freezed mutation | 50.39s | 43.33s (`1.16x`) | 42.84s (`1.18x`) |
-| Injection mutation | 66.72s | 49.38s (`1.35x`) | 46.24s (`1.44x`) |
-
-### Incremental Rebuild vs Upstream `build_runner`
+### Incremental Rebuild vs Upstream `build_runner` (Large Private App)
 
 | Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
 | --- | ---: | ---: | ---: |
@@ -141,10 +132,18 @@ profiles.
 | Freezed mutation | 8.75s | 5.02s (`1.74x`) | 4.99s (`1.75x`) |
 | Injection mutation | 25.10s | 4.37s (`5.75x`) | 3.77s (`6.66x`) |
 
+### Incremental Rebuild vs Upstream `build_runner` (`padelapp`)
+
+| Scenario | Upstream | fast_build_runner (dart) | fast_build_runner (rust) |
+| --- | ---: | ---: | ---: |
+| Auth DTO mutation | 11.94s | 7.01s (`1.70x`) | 7.07s (`1.69x`) |
+| Payment request freezed mutation | 9.93s | 5.40s (`1.84x`) | 5.24s (`1.90x`) |
+
 ### Current Interpretation
 
 - The **main value today is incremental rebuild speed**.
-- The **Dart** mode is the current safe public story.
+- The **Dart** mode is the current safe public story and already wins on both
+  real apps above.
 - The **Rust** mode already wins on some heavy cases, but still has bad total
   behavior on short DTO-style sessions because its startup cost does not always
   amortize.

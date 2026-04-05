@@ -1,0 +1,19 @@
+{
+  "name": "padelapp payment_request freezed",
+  "sourceFileRelativePath": "lib/src/feature/booking_confirm/model/payment_request.dart",
+  "generatedFileRelativePath": "lib/src/feature/booking_confirm/model/payment_request.freezed.dart",
+  "steps": [
+    {
+      "name": "add promoCode",
+      "generatedMarkers": [
+        "promoCode"
+      ],
+      "replacements": [
+        {
+          "from": "  const factory PaymentRequest({\n    required PaymentProductType productType,\n    required String productId,\n    required String description,\n  }) = _PaymentRequest;\n",
+          "to": "  const factory PaymentRequest({\n    required PaymentProductType productType,\n    required String productId,\n    required String description,\n    String? promoCode,\n  }) = _PaymentRequest;\n"
+        }
+      ]
+    }
+  ]
+}
