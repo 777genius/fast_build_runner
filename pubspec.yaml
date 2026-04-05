@@ -1,6 +1,6 @@
 name: fast_build_runner
 description: Faster watch and incremental rebuild workflows for build_runner-based Dart and Flutter projects.
-version: 0.1.5
+version: 0.1.6
 repository: https://github.com/777genius/fast_build_runner
 homepage: https://github.com/777genius/fast_build_runner
 environment:
@@ -11,7 +11,7 @@ executables:
 
 dependencies:
   args: ^2.7.0
-  fast_build_runner_internal: ^0.1.4
+  fast_build_runner_internal: ^0.1.5
 
 dev_dependencies:
   build: any

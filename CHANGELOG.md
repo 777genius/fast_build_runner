@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.1.6
+
+- Added a real `example/` for the hosted CLI package so pub.dev shows a working quick-start example.
+- Updated the README benchmark section to show a second anonymized real-project incremental table.
+
 ## 0.1.5
 
 - Added a real long-lived `watch` command for the current project instead of only finite `spike-watch` proof runs.

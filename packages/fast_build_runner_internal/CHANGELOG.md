@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.5
+
+- Added a runnable `example/` so pub.dev can show a concrete usage entry for the internal runtime package.
+
 ## 0.1.4
 
 - Added the Dart-side live watch session used by the public `fast_build_runner watch` command.
